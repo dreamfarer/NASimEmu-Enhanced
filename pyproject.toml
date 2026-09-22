@@ -3,13 +3,19 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "nasimemu"
-version = "0.9.0"
+name = "nasimemu-enhanced"
+version = "1.0.0"
 authors = [
     {name="Jaromir Janisch", email="author@jaromiru.com"}
 ]
+maintainers = [
+    {name="dreamfarer"}
+]
 description = "Gym based environment for training offensive RL agents in simulated and emulated computer networks."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10,<3.11"
 dependencies = [
     "gym == 0.21.0",
     "networkx", # For nasim render
@@ -25,3 +31,14 @@ dependencies = [
     # "pygame", # For nasim play
     # "kaleido", # Image with plotly for nasim play
 ]
+
+[project.urls]
+Homepage = "https://github.com/dreamfarer/NASimEmu-Enhanced"
+Repository = "https://github.com/dreamfarer/NASimEmu-Enhanced"
+Upstream = "https://github.com/jaromiru/NASimEmu"
+
+[tool.hatch.build.targets.sdist]
+only-include = ["src", "README.md", "LICENSE", "pyproject.toml"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nasimemu"]
