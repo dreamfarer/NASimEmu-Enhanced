@@ -30,7 +30,7 @@ The accompanying paper *NASimEmu: Network Attack Simulator & Emulator for Traini
 
 The scenario files are not part of the package; get them from the [`scenarios/`](https://github.com/dreamfarer/NASimEmu-Enhanced/tree/main/scenarios) folder of this repository.
 
-For development, clone the repository and install it in editable mode (same legacy tooling as above, plus the build backend):
+For development, clone the repository and install it in editable mode (same legacy tooling as above):
 ```
 git clone https://github.com/dreamfarer/NASimEmu-Enhanced.git
 cd NASimEmu-Enhanced; pip install hatchling editables; pip install --no-build-isolation -e .
