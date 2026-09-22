@@ -20,18 +20,13 @@ The accompanying paper *NASimEmu: Network Attack Simulator & Emulator for Traini
 
 ## Installation
 
-> **Warning:** NASimEmu-Enhanced 1.x depends on `gym==0.21.0`, whose package
-> metadata is rejected by current packaging tools. Until `gym` is replaced
-> (planned for 2.0.0), install with legacy tooling on Python 3.10, and do
-> *not* upgrade `pip` in this environment:
+> **Warning:** NASimEmu-Enhanced 1.x depends on `gym==0.21.0`, whose package metadata is rejected by current packaging tools. Until `gym` is replaced, install with legacy tooling on Python 3.10:
 >
 > ```
 > python3.10 -m venv .venv && source .venv/bin/activate
 > pip install "pip<24.1" "setuptools<66" "wheel<0.40"
 > pip install --no-build-isolation nasimemu-enhanced
 > ```
->
-> `uv pip install` cannot install `gym==0.21.0` at all.
 
 The scenario files are not part of the package; get them from the [`scenarios/`](https://github.com/dreamfarer/NASimEmu-Enhanced/tree/main/scenarios) folder of this repository.
 
