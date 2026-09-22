@@ -1,7 +1,7 @@
 # NASimEmu: Network Attack Simulator & Emulator
 
 <div align=center>
-    <img src="docs/nasimemu_trace.svg" alt="NASimEmu observation" width="75%" height="75%">
+    <img src="https://raw.githubusercontent.com/dreamfarer/NASimEmu-Enhanced/main/docs/nasimemu_trace.svg" alt="NASimEmu observation" width="75%" height="75%">
 </div>
 
 ## Related
@@ -19,18 +19,24 @@ NASimEmu introduces a few changes for training general agents that can transfer 
 The accompanying paper *NASimEmu: Network Attack Simulator & Emulator for Training Agents Generalizing to Novel Scenarios* can be found on [arXiv](https://arxiv.org/abs/2305.17246).
 
 ## Installation
-Make sure you use latest `pip`:
+
+> **Warning:** NASimEmu-Enhanced 1.x depends on `gym==0.21.0`, whose package metadata is rejected by current packaging tools. Until `gym` is replaced, install with legacy tooling on Python 3.10:
+>
+> ```
+> python3.10 -m venv .venv && source .venv/bin/activate
+> pip install "pip<24.1" "setuptools<66" "wheel<0.40"
+> pip install --no-build-isolation nasimemu-enhanced
+> ```
+
+The scenario files are not part of the package; get them from the [`scenarios/`](https://github.com/dreamfarer/NASimEmu-Enhanced/tree/main/scenarios) folder of this repository.
+
+For development, clone the repository and install it in editable mode (same legacy tooling as above):
 ```
-pip install --upgrade pip
+git clone https://github.com/dreamfarer/NASimEmu-Enhanced.git
+cd NASimEmu-Enhanced; pip install hatchling editables; pip install --no-build-isolation -e .
 ```
 
-Clone the repository and install it locally (`-e` for development mode):
-```
-git clone https://github.com/jaromiru/NASimEmu.git
-cd NASimEmu; pip install -e .
-```
-
-To use emulation, you have to install [Vagrant](https://developer.hashicorp.com/vagrant/downloads) yourself; see [EMULATION](docs/EMULATION.md).
+To use emulation, you have to install [Vagrant](https://developer.hashicorp.com/vagrant/downloads) yourself; see [EMULATION](https://github.com/dreamfarer/NASimEmu-Enhanced/blob/main/docs/EMULATION.md).
 
 ## Usage
 ```python
@@ -78,14 +84,14 @@ The simulation is based on Network Attack Simulator and you can read its docs he
 
 These are the changes in NaSimEmu:
 
-- Support for new [v2 scenarios](docs/SCENARIOS.md), which define classes of problems from which random instances are generated. The v2 scenarios define a topology, sensitive subnets, services, processes and exploits. However, the generated instances vary in number of hosts in subnets and hosts' configuration. For example, you can define scenarios representing "bank", "university" or "enterprise" domains.
+- Support for new [v2 scenarios](https://github.com/dreamfarer/NASimEmu-Enhanced/blob/main/docs/SCENARIOS.md), which define classes of problems from which random instances are generated. The v2 scenarios define a topology, sensitive subnets, services, processes and exploits. However, the generated instances vary in number of hosts in subnets and hosts' configuration. For example, you can define scenarios representing "bank", "university" or "enterprise" domains.
 - Agent can be trained or deployed in multiple scerarios at once. This is useful to test generalization and transfer learning of the agent. E.g., how does it perform in the "enterprise" scenario when trained only in "bank" and "university"?
 - The interface has been changed to true partial observability. That is, the agent cannot infer the number of hosts or subnets in the current scenario instance and all other unknown information is masked. To aleviate memorization of acquired information, the observation at each step records all the information gathered so far. Further, host and subnet ids are scrambled to avoid their memorization.
 
 ## Emulation
 The emulation is made with [Vagrant](https://www.vagrantup.com/) and [VirtualBox](https://www.virtualbox.org/). You will need to install these on your system first. A scenario is converted into a Vagrantfile and deployed. The vagrant spawns a virtual machine for each host in the scenario (currently, Ubuntu and Windows machines are available) and configures them properly. Additionally, it deploys one [RouterOS](https://wiki.mikrotik.com/wiki/Manual:RouterOS_FAQ) based router that segments the network into subnets and one attacker machine that runs [Kali Linux](https://www.kali.org/) and uses [Metasploit](https://www.metasploit.com/) with pre-configured exploits to run.
 
-For more information about emulation, see [EMULATION](docs/EMULATION.md).
+For more information about emulation, see [EMULATION](https://github.com/dreamfarer/NASimEmu-Enhanced/blob/main/docs/EMULATION.md).
 
 ## Limitations / Properties
 Please, be aware of the following:
