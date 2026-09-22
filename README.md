@@ -19,18 +19,29 @@ NASimEmu introduces a few changes for training general agents that can transfer 
 The accompanying paper *NASimEmu: Network Attack Simulator & Emulator for Training Agents Generalizing to Novel Scenarios* can be found on [arXiv](https://arxiv.org/abs/2305.17246).
 
 ## Installation
-Make sure you use latest `pip`:
+
+> **Warning:** NASimEmu-Enhanced 1.x depends on `gym==0.21.0`, whose package
+> metadata is rejected by current packaging tools. Until `gym` is replaced
+> (planned for 2.0.0), install with legacy tooling on Python 3.10, and do
+> *not* upgrade `pip` in this environment:
+>
+> ```
+> python3.10 -m venv .venv && source .venv/bin/activate
+> pip install "pip<24.1" "setuptools<66" "wheel<0.40"
+> pip install --no-build-isolation nasimemu-enhanced
+> ```
+>
+> `uv pip install` cannot install `gym==0.21.0` at all.
+
+The scenario files are not part of the package; get them from the [`scenarios/`](https://github.com/dreamfarer/NASimEmu-Enhanced/tree/main/scenarios) folder of this repository.
+
+For development, clone the repository and install it in editable mode (same legacy tooling as above, plus the build backend):
 ```
-pip install --upgrade pip
+git clone https://github.com/dreamfarer/NASimEmu-Enhanced.git
+cd NASimEmu-Enhanced; pip install hatchling editables; pip install --no-build-isolation -e .
 ```
 
-Clone the repository and install it locally (`-e` for development mode):
-```
-git clone https://github.com/jaromiru/NASimEmu.git
-cd NASimEmu; pip install -e .
-```
-
-To use emulation, you have to install [Vagrant](https://developer.hashicorp.com/vagrant/downloads) yourself; see [EMULATION](docs/EMULATION.md).
+To use emulation, you have to install [Vagrant](https://developer.hashicorp.com/vagrant/downloads) yourself; see [EMULATION](https://github.com/dreamfarer/NASimEmu-Enhanced/blob/main/docs/EMULATION.md).
 
 ## Usage
 ```python
