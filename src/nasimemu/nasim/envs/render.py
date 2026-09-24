@@ -2,8 +2,21 @@
 import math
 import random
 import tkinter as Tk
+from typing import TYPE_CHECKING, Any, Sequence
+
 import networkx as nx
 from prettytable import PrettyTable
+
+from .utils import Address
+
+if TYPE_CHECKING:
+    from .action import Action
+    from .network import Network
+    from .observation import Observation
+    from .state import State
+
+# (state, action, reward, done) tuples
+Episode = Sequence[tuple["State", "Action", float, bool]]
 
 # import order important here
 try:
@@ -31,7 +44,7 @@ SYMBOLS = ['C', 'R', 'S', 'c', 'r', 'o', 'A']
 class Viewer:
     """A class for visualizing the network state from NASimEnv"""
 
-    def __init__(self, network):
+    def __init__(self, network: "Network") -> None:
         """
         Arguments
         ---------
@@ -42,7 +55,12 @@ class Viewer:
         self.subnets = self._get_subnets(network)
         self.positions = self._get_host_positions(network)
 
-    def render_graph(self, state, ax=None, show=False, width=5, height=6):
+    def render_graph(self,
+                     state: "State",
+                     ax: Any = None,
+                     show: bool = False,
+                     width: int = 5,
+                     height: int = 6) -> None:
         """Render graph structure represention of network
 
         Arguments
@@ -61,7 +79,7 @@ class Viewer:
         """
         G = self._construct_graph(state)
         colors = []
-        labels = {}
+        labels: dict[Address, str] = {}
         for n in list(G.nodes):
             colors.append(G.nodes[n]["color"])
             labels[n] = G.nodes[n]["label"]
@@ -95,7 +113,9 @@ class Viewer:
             plt.show()
             plt.close(fig)
 
-    def render_episode(self, episode, width=7, height=5):
+    def render_episode(
+        self, episode: Episode, width: int = 7, height: int = 5
+    ) -> None:
         """Display an episode from Cyber Attack Simulator Environment in a seperate
         window. Where an episode is a sequence of (state, action, reward, done)
         tuples generated from interactions with environment.
@@ -113,7 +133,7 @@ class Viewer:
         G = self._construct_graph(init_ep_state)
         EpisodeViewer(episode, G, self.network.sensitive_hosts, width, height)
 
-    def render_readable(self, obs):
+    def render_readable(self, obs: "Observation") -> None:
         """Print a readable tabular version of observation to stdout
 
         Arguments
@@ -128,7 +148,7 @@ class Viewer:
         print(aux_table)
         print(host_table)
 
-    def render_readable_state(self, state):
+    def render_readable_state(self, state: "State") -> None:
         """Print a readable tabular version of observation to stdout
 
         Arguments
@@ -141,14 +161,16 @@ class Viewer:
         print("State:")
         print(host_table)
 
-    def _construct_table_from_dict(self, d):
+    def _construct_table_from_dict(self, d: dict[str, Any]) -> PrettyTable:
         headers = list(d.keys())
         table = PrettyTable(headers)
         row = [str(d[k]) for k in headers]
         table.add_row(row)
         return table
 
-    def _construct_table_from_list_of_dicts(self, l):
+    def _construct_table_from_list_of_dicts(
+        self, l: list[dict[str, Any]]
+    ) -> PrettyTable:
         headers = list(l[0].keys())
         table = PrettyTable(headers)
         for d in l:
@@ -156,7 +178,7 @@ class Viewer:
             table.add_row(row)
         return table
 
-    def _construct_graph(self, state):
+    def _construct_graph(self, state: "State") -> "nx.Graph[Address]":
         """Create a network graph from the current state
 
         Arguments
@@ -169,7 +191,7 @@ class Viewer:
         G : Graph
             NetworkX Graph representing state of network
         """
-        G = nx.Graph()
+        G: nx.Graph[Address] = nx.Graph()
         sensitive_hosts = self.network.sensitive_hosts
 
         # Create a fully connected graph for each subnet
@@ -202,7 +224,9 @@ class Viewer:
 
         return G
 
-    def _get_host_positions(self, network):
+    def _get_host_positions(
+        self, network: "Network"
+    ) -> dict[Address, tuple[float, float]]:
         """Get list of positions for each host in episode
 
         Arguments
@@ -212,11 +236,11 @@ class Viewer:
             episode was generated from
         """
         address_space = network.address_space
-        depths = network.get_subnet_depths()
+        depths = [int(d) for d in network.get_subnet_depths()]
         max_depth = max(depths)
         # list of lists where each list contains subnet_id of subnets with
         # same depth
-        subnets_by_depth = [[] for i in range(max_depth + 1)]
+        subnets_by_depth: list[list[int]] = [[] for i in range(max_depth + 1)]
         for subnet_id, subnet_depth in enumerate(depths):
             if subnet_id == 0:
                 continue
@@ -231,7 +255,7 @@ class Viewer:
 
         # positions are randomly assigned within regions of display based on
         # subnet number
-        positions = {}
+        positions: dict[Address, tuple[float, float]] = {}
         for m in address_space:
             m_subnet = m[0]
             m_depth = depths[m_subnet]
@@ -262,8 +286,15 @@ class Viewer:
 
         return positions
 
-    def _get_host_position(self, m, positions, address_space, row_min, row_max,
-                           col_min, col_max, margin):
+    def _get_host_position(self,
+                           m: Address,
+                           positions: dict[Address, tuple[float, float]],
+                           address_space: list[Address],
+                           row_min: float,
+                           row_max: float,
+                           col_min: float,
+                           col_max: float,
+                           margin: float) -> tuple[float, float]:
         """Get the position of m within the bounds of (row_min, row_max,
         col_min, col_max) while trying to make the distance between the
         positions of any two hosts in the same subnet greater than some
@@ -300,7 +331,7 @@ class Viewer:
             n += 1
         return m_x, m_y
 
-    def _get_subnets(self, network):
+    def _get_subnets(self, network: "Network") -> list[list[Address]]:
         """Get list of hosts organized into subnets
 
         Arguments
@@ -313,7 +344,9 @@ class Viewer:
         list[list[(int, int)]]
             addresses with each list containing hosts on same subnet
         """
-        subnets = [[] for i in range(network.get_number_of_subnets())]
+        subnets: list[list[Address]] = [
+            [] for i in range(network.get_number_of_subnets())
+        ]
         for m in network.address_space:
             subnets[m[0]].append(m)
         # add internet host
@@ -324,7 +357,12 @@ class Viewer:
 class EpisodeViewer:
     """Displays sequence of observations from NASimEnv in a seperate window"""
 
-    def __init__(self, episode, G, sensitive_hosts, width=7, height=7):
+    def __init__(self,
+                 episode: Episode,
+                 G: "nx.Graph[Address]",
+                 sensitive_hosts: dict[Address, float],
+                 width: int = 7,
+                 height: int = 7) -> None:
         self.episode = episode
         self.G = G
         self.sensitive_hosts = sensitive_hosts
@@ -336,7 +374,7 @@ class EpisodeViewer:
         # Initialize GUI drawing loop
         Tk.mainloop()
 
-    def _setup_GUI(self, width, height):
+    def _setup_GUI(self, width: int, height: int) -> None:
         """Setup all the elements for the GUI for displaying the network graphs.
 
         Initializes object variables:k
@@ -364,23 +402,25 @@ class EpisodeViewer:
         next = Tk.Button(self.root, text="next", command=self._next_graph)
         next.pack()
 
-    def _close(self):
+    def _close(self) -> None:
         plt.close('all')
         self.root.destroy()
 
-    def _next_graph(self):
+    def _next_graph(self) -> None:
         if self.timestep < len(self.episode):
             t_state = self.episode[self.timestep][0]
             self.G = self._update_graph(self.G, t_state)
             self._draw_graph(self.G)
             self.timestep += 1
 
-    def _previous_graph(self):
+    def _previous_graph(self) -> None:
         if self.timestep > 1:
             self.timestep -= 2
             self._next_graph()
 
-    def _update_graph(self, G, state):
+    def _update_graph(
+        self, G: "nx.Graph[Address]", state: "State"
+    ) -> "nx.Graph[Address]":
         # update colour of each host in network as necessary
         for m in list(G.nodes):
             if m == AGENT:
@@ -391,10 +431,10 @@ class EpisodeViewer:
             G.nodes[m]["color"] = node_color
         return G
 
-    def _draw_graph(self, G):
+    def _draw_graph(self, G: "nx.Graph[Address]") -> None:
         pos = {}
         colors = []
-        labels = {}
+        labels: dict[Address, str] = {}
         for n in list(G.nodes):
             colors.append(G.nodes[n]["color"])
             labels[n] = G.nodes[n]["label"]
@@ -439,7 +479,7 @@ class EpisodeViewer:
         self.canvas.draw()
 
     @staticmethod
-    def legend(compromised=True):
+    def legend(compromised: bool = True) -> list[Any]:
         """
         Manually setup the display legend
         """
@@ -456,7 +496,10 @@ class EpisodeViewer:
         return legend_entries
 
 
-def get_host_representation(state, sensitive_hosts, m, representation):
+def get_host_representation(state: "State",
+                            sensitive_hosts: dict[Address, float],
+                            m: Address,
+                            representation: list[str]) -> str:
     """Get the representation of a host based on current state
 
     Arguments

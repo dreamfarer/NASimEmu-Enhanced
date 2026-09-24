@@ -1,5 +1,6 @@
 from .environment import NASimEnv
-from nasimemu.nasim.scenarios import Scenario, make_benchmark_scenario
+from nasimemu.nasim.scenarios import make_benchmark_scenario
+from nasimemu.nasim.scenarios.scenario import Scenario
 
 
 class NASimGymEnv(NASimEnv):
@@ -9,10 +10,10 @@ class NASimGymEnv(NASimEnv):
     """
 
     def __init__(self,
-                 scenario,
-                 fully_obs=False,
-                 flat_actions=True,
-                 flat_obs=True):
+                 scenario: Scenario | str,
+                 fully_obs: bool = False,
+                 flat_actions: bool = True,
+                 flat_obs: bool = True) -> None:
         """
         Parameters
         ----------

@@ -1,10 +1,12 @@
+from typing import Any
 from nasimemu.nasim.envs.host_vector import HostVector
 import numpy as np
+from numpy.typing import NDArray
 
-import networkx as nx 
+import networkx as nx
 import plotly.graph_objects as go
 
-def get_possible_actions(env, s):
+def get_possible_actions(env: Any, s: NDArray[Any]) -> list[tuple[Any, int]]:
     # gather all possible addresses
     addresses = []
     for host_data in s[:-1]:
@@ -18,10 +20,10 @@ def get_possible_actions(env, s):
 
     return possible_actions
 
-def _complete_graph(n):
+def _complete_graph(n: Any) -> list[tuple[Any, Any]]:
     return [(a, b) for a in n for b in n if a != b]
 
-def _gen_edge_index_v1(node_index, subnets, subnet_graph):
+def _gen_edge_index_v1(node_index: NDArray[Any], subnets: list[Any], subnet_graph: Any) -> NDArray[Any]:
     edge_index = []
 
     # hosts in subnets are connected together
@@ -42,11 +44,11 @@ def _gen_edge_index_v1(node_index, subnets, subnet_graph):
 
         edge_index.append([(s_from, s_to), (s_to, s_from)])
 
-    edge_index = np.concatenate(edge_index).T
+    result: NDArray[Any] = np.concatenate(edge_index).T
 
-    return edge_index
+    return result
 
-def _gen_edge_index_v2(node_index, subnets, subnet_graph):
+def _gen_edge_index_v2(node_index: NDArray[Any], subnets: list[Any], subnet_graph: Any) -> NDArray[Any]:
     edge_index = []
 
     # hosts in subnets are connected to their subnet
@@ -71,11 +73,11 @@ def _gen_edge_index_v2(node_index, subnets, subnet_graph):
 
         edge_index.append([(s_from, s_to), (s_to, s_from)])
 
-    edge_index = np.concatenate(edge_index).T
-    return edge_index
+    result: NDArray[Any] = np.concatenate(edge_index).T
+    return result
 
 # v1 = nodes are connected to each other; v2 = they're not
-def convert_to_graph(s, subnet_graph, version=1):
+def convert_to_graph(s: NDArray[Any], subnet_graph: Any, version: int = 1) -> tuple[NDArray[Any], NDArray[Any], NDArray[Any], NDArray[Any]]:
     # hosts_discovered = s[:-1, HostVector._discovered_idx] == 1
     # host_feats = s[:-1][hosts_discovered]
 
@@ -110,8 +112,8 @@ def convert_to_graph(s, subnet_graph, version=1):
     return node_feats, edge_index, node_index, pos_index
 
 # inspired from https://plotly.com/python/network-graphs/
-def _plot(G):
-    def get_edges(type):
+def _plot(G: Any) -> Any:
+    def get_edges(type: str) -> tuple[list[Any], list[Any]]:
         edge_x = []
         edge_y = []
 
@@ -200,16 +202,16 @@ def _plot(G):
 
     return fig
 
-def _make_graph(s, a):
+def _make_graph(s: Any, a: Any) -> Any:
     node_feats, edge_index, node_index, pos_index = s
 
-    G = nx.Graph() 
-    G.add_edges_from(edge_index.T) 
+    G: nx.Graph[Any] = nx.Graph()
+    G.add_edges_from(edge_index.T)
     pos = nx.kamada_kawai_layout(G)
 
     a_target = (-1, -1) if a.__class__.__name__ == "TerminalAction" else a.target
 
-    def get_host_conf(host_id):
+    def get_host_conf(host_id: int) -> str:
         host_vec = HostVector(node_feats[host_id][1:])
 
         running_services = []
@@ -223,7 +225,7 @@ def _make_graph(s, a):
 
         return service_str
 
-    def get_host_string(i):
+    def get_host_string(i: int) -> str:
         node_idx = node_index[i]
         host_conf = get_host_conf(i)
 
@@ -234,15 +236,15 @@ def _make_graph(s, a):
 
         return f"{node_str} <b>{node_action}</b>{host_conf}"
 
-    def is_host_sensitive(i):
+    def is_host_sensitive(i: int) -> bool:
         host_vec = HostVector(node_feats[i][1:])
-        return host_vec.value > 0
+        return bool(host_vec.value > 0)
 
-    def is_host_controlled(i):
+    def is_host_controlled(i: int) -> int:
         host_vec = HostVector(node_feats[i][1:])
         return int(host_vec.access)
 
-    def get_node_color(i):
+    def get_node_color(i: int) -> str:
         if node_index[i][1] == -1:
             return 'grey'
         else:
@@ -264,7 +266,7 @@ def _make_graph(s, a):
 
     return G
 
-def plot_network(s, subnet_graph, last_action):
+def plot_network(s: NDArray[Any], subnet_graph: Any, last_action: Any) -> Any:
     s_graph = convert_to_graph(s, subnet_graph, version=2)
     G = _make_graph(s_graph, last_action)
     fig = _plot(G)

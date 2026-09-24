@@ -10,6 +10,8 @@ $ python run_random_benchmarks.py [-n --num_cpus NUM_CPUS]
 
 """
 import os
+from typing import Any, Iterable
+
 import numpy as np
 import multiprocessing as mp
 from prettytable import PrettyTable
@@ -19,29 +21,30 @@ from nasimemu.nasim.agents.random_agent import run_random_agent
 from nasimemu.nasim.scenarios.benchmark import AVAIL_BENCHMARKS
 
 
-def print_msg(msg):
+def print_msg(msg: str) -> None:
     print(f"[PID={os.getpid()}] {msg}")
 
 
 class Result:
 
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
-        self.run_steps = []
-        self.run_rewards = []
+        self.run_steps: list[int] = []
+        self.run_rewards: list[float] = []
 
-    def add(self, steps, reward):
+    def add(self, steps: int, reward: float) -> None:
         self.run_steps.append(steps)
         self.run_rewards.append(reward)
 
-    def summarize(self):
+    def summarize(self) -> tuple[np.floating[Any], np.floating[Any],
+                                 np.floating[Any], np.floating[Any]]:
         steps_mean = np.mean(self.run_steps)
         steps_std = np.std(self.run_steps)
         reward_mean = np.mean(self.run_rewards)
         reward_std = np.std(self.run_rewards)
         return steps_mean, steps_std, reward_mean, reward_std
 
-    def get_formatted_summary(self):
+    def get_formatted_summary(self) -> tuple[str, str]:
         steps_mean, steps_std, reward_mean, reward_std = self.summarize()
         return (
             f"{steps_mean:.2f} +/- {steps_std:.2f}",
@@ -49,7 +52,7 @@ class Result:
         )
 
 
-def run_scenario(args):
+def run_scenario(args: tuple[str, int]) -> dict[str, Any]:
     scenario_name, seed = args
     print_msg(f"Running '{scenario_name}' scenario with seed={seed}")
     env = nasim.make_benchmark(scenario_name, seed, False, True, True)
@@ -62,8 +65,9 @@ def run_scenario(args):
     }
 
 
-def collate_results(results):
-    scenario_results = {}
+def collate_results(
+        results: Iterable[dict[str, Any]]) -> dict[str, Result]:
+    scenario_results: dict[str, Result] = {}
     for res in results:
         name = res["Name"]
         if name not in scenario_results:
@@ -72,7 +76,8 @@ def collate_results(results):
     return scenario_results
 
 
-def output_results(results, output=None):
+def output_results(results: dict[str, Result],
+                   output: str | None = None) -> None:
     headers = ["Scenario Name", "Steps", "Total Reward"]
     rows = []
     for name in AVAIL_BENCHMARKS:
@@ -91,7 +96,9 @@ def output_results(results, output=None):
                 fout.write(",".join(row) + "\n")
 
 
-def run_random_benchmark(num_cpus=1, num_seeds=10, output=None):
+def run_random_benchmark(num_cpus: int = 1,
+                         num_seeds: int = 10,
+                         output: str | None = None) -> None:
     run_args_list = []
     for name in AVAIL_BENCHMARKS:
         for seed in range(num_seeds):
@@ -100,8 +107,7 @@ def run_random_benchmark(num_cpus=1, num_seeds=10, output=None):
     with mp.Pool(num_cpus) as p:
         results = p.map(run_scenario, run_args_list)
 
-    results = collate_results(results)
-    output_results(results, output)
+    output_results(collate_results(results), output)
 
 
 if __name__ == "__main__":

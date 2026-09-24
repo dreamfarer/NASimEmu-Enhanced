@@ -1,10 +1,11 @@
 import os.path as osp
+from typing import Any
 
-from .generated import AVAIL_GEN_BENCHMARKS
+from .generated import AVAIL_GEN_BENCHMARKS as AVAIL_GEN_BENCHMARKS
 
 BENCHMARK_DIR = osp.dirname(osp.abspath(__file__))
 
-AVAIL_STATIC_BENCHMARKS = {
+AVAIL_STATIC_BENCHMARKS: dict[str, dict[str, Any]] = {
     "tiny": {
         "file": osp.join(BENCHMARK_DIR, "tiny.yaml"),
         "name": "tiny",

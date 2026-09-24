@@ -34,13 +34,19 @@ actions or not:
 """
 
 import math
+from typing import TYPE_CHECKING, Any, Sequence
+
 import numpy as np
+from numpy.typing import NDArray
 from gym import spaces
 
-from .utils import AccessLevel
+from .utils import AccessLevel, Address
+
+if TYPE_CHECKING:
+    from nasimemu.nasim.scenarios.scenario import Scenario
 
 
-def load_action_list(scenario):
+def load_action_list(scenario: "Scenario") -> list["Action"]:
     """Load list of actions for environment for given scenario
 
     Parameters
@@ -53,7 +59,7 @@ def load_action_list(scenario):
     list
         list of all actions in environment
     """
-    action_list = []
+    action_list: list[Action] = []
     for address in scenario.address_space:
         action_list.append(
             ServiceScan(address, scenario.service_scan_cost)
@@ -109,12 +115,12 @@ class Action:
     """
 
     def __init__(self,
-                 name,
-                 target,
-                 cost,
-                 prob=1.0,
-                 req_access=AccessLevel.USER,
-                 **kwargs):
+                 name: str,
+                 target: Address,
+                 cost: float,
+                 prob: float = 1.0,
+                 req_access: AccessLevel = AccessLevel.USER,
+                 **kwargs: Any) -> None:
         """
         Parameters
         ---------
@@ -137,7 +143,7 @@ class Action:
         self.prob = prob
         self.req_access = req_access
 
-    def is_exploit(self):
+    def is_exploit(self) -> bool:
         """Check if action is an exploit
 
         Returns
@@ -147,7 +153,7 @@ class Action:
         """
         return isinstance(self, Exploit)
 
-    def is_privilege_escalation(self):
+    def is_privilege_escalation(self) -> bool:
         """Check if action is privilege escalation action
 
         Returns
@@ -157,7 +163,7 @@ class Action:
         """
         return isinstance(self, PrivilegeEscalation)
 
-    def is_scan(self):
+    def is_scan(self) -> bool:
         """Check if action is a scan
 
         Returns
@@ -167,7 +173,7 @@ class Action:
         """
         return isinstance(self, (ServiceScan, OSScan, SubnetScan, ProcessScan))
 
-    def is_remote(self):
+    def is_remote(self) -> bool:
         """Check if action is a remote action
 
         A remote action is one where the target host is a remote host (i.e. the
@@ -180,7 +186,7 @@ class Action:
         """
         return isinstance(self, (ServiceScan, OSScan, Exploit))
 
-    def is_service_scan(self):
+    def is_service_scan(self) -> bool:
         """Check if action is a service scan
 
         Returns
@@ -190,7 +196,7 @@ class Action:
         """
         return isinstance(self, ServiceScan)
 
-    def is_os_scan(self):
+    def is_os_scan(self) -> bool:
         """Check if action is an OS scan
 
         Returns
@@ -200,7 +206,7 @@ class Action:
         """
         return isinstance(self, OSScan)
 
-    def is_subnet_scan(self):
+    def is_subnet_scan(self) -> bool:
         """Check if action is a subnet scan
 
         Returns
@@ -210,7 +216,7 @@ class Action:
         """
         return isinstance(self, SubnetScan)
 
-    def is_process_scan(self):
+    def is_process_scan(self) -> bool:
         """Check if action is a process scan
 
         Returns
@@ -220,7 +226,7 @@ class Action:
         """
         return isinstance(self, ProcessScan)
 
-    def is_noop(self):
+    def is_noop(self) -> bool:
         """Check if action is a do nothing action.
 
         Returns
@@ -230,7 +236,7 @@ class Action:
         """
         return isinstance(self, NoOp)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (f"{self.__class__.__name__}: "
                 f"name={self.name}, "
                 f"target={self.target}, "
@@ -238,10 +244,10 @@ class Action:
                 f"prob={self.prob:.2f}, "
                 f"req_access={self.req_access}")
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.__str__())
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if self is other:
             return True
         if not isinstance(other, type(self)):
@@ -272,15 +278,15 @@ class Exploit(Action):
     """
 
     def __init__(self,
-                 name,
-                 target,
-                 cost,
-                 service,
-                 os=None,
-                 access=0,
-                 prob=1.0,
-                 req_access=AccessLevel.USER,
-                 **kwargs):
+                 name: str,
+                 target: Address,
+                 cost: float,
+                 service: str,
+                 os: str | None = None,
+                 access: int = 0,
+                 prob: float = 1.0,
+                 req_access: AccessLevel = AccessLevel.USER,
+                 **kwargs: Any) -> None:
         """
         Parameters
         ---------
@@ -310,13 +316,14 @@ class Exploit(Action):
         self.service = service
         self.access = access
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (f"{super().__str__()}, os={self.os}, "
                 f"service={self.service}, access={self.access}")
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not super().__eq__(other):
             return False
+        assert isinstance(other, Exploit)
         return self.service == other.service \
             and self.os == other.os \
             and self.access == other.access
@@ -342,15 +349,15 @@ class PrivilegeEscalation(Action):
     """
 
     def __init__(self,
-                 name,
-                 target,
-                 cost,
-                 access,
-                 process=None,
-                 os=None,
-                 prob=1.0,
-                 req_access=AccessLevel.USER,
-                 **kwargs):
+                 name: str,
+                 target: Address,
+                 cost: float,
+                 access: int,
+                 process: str | None = None,
+                 os: str | None = None,
+                 prob: float = 1.0,
+                 req_access: AccessLevel = AccessLevel.USER,
+                 **kwargs: Any) -> None:
         """
         Parameters
         ---------
@@ -381,13 +388,14 @@ class PrivilegeEscalation(Action):
         self.os = os
         self.process = process
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (f"{super().__str__()}, os={self.os}, "
                 f"process={self.process}, access={self.access}")
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not super().__eq__(other):
             return False
+        assert isinstance(other, PrivilegeEscalation)
         return self.process == other.process \
             and self.os == other.os \
             and self.access == other.access
@@ -400,11 +408,11 @@ class ServiceScan(Action):
     """
 
     def __init__(self,
-                 target,
-                 cost,
-                 prob=1.0,
-                 req_access=AccessLevel.USER,
-                 **kwargs):
+                 target: Address,
+                 cost: float,
+                 prob: float = 1.0,
+                 req_access: AccessLevel = AccessLevel.USER,
+                 **kwargs: Any) -> None:
         """
         Parameters
         ---------
@@ -433,11 +441,11 @@ class OSScan(Action):
     """
 
     def __init__(self,
-                 target,
-                 cost,
-                 prob=1.0,
-                 req_access=AccessLevel.USER,
-                 **kwargs):
+                 target: Address,
+                 cost: float,
+                 prob: float = 1.0,
+                 req_access: AccessLevel = AccessLevel.USER,
+                 **kwargs: Any) -> None:
         """
         Parameters
         ---------
@@ -466,11 +474,11 @@ class SubnetScan(Action):
     """
 
     def __init__(self,
-                 target,
-                 cost,
-                 prob=1.0,
-                 req_access=AccessLevel.USER,
-                 **kwargs):
+                 target: Address,
+                 cost: float,
+                 prob: float = 1.0,
+                 req_access: AccessLevel = AccessLevel.USER,
+                 **kwargs: Any) -> None:
         """
         Parameters
         ---------
@@ -499,11 +507,11 @@ class ProcessScan(Action):
     """
 
     def __init__(self,
-                 target,
-                 cost,
-                 prob=1.0,
-                 req_access=AccessLevel.USER,
-                 **kwargs):
+                 target: Address,
+                 cost: float,
+                 prob: float = 1.0,
+                 req_access: AccessLevel = AccessLevel.USER,
+                 **kwargs: Any) -> None:
         """
         Parameters
         ---------
@@ -531,7 +539,7 @@ class NoOp(Action):
     Inherits from the base Action Class
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(name="noop",
                          target=(1, 0),
                          cost=0,
@@ -577,17 +585,17 @@ class ActionResult:
     """
 
     def __init__(self,
-                 success,
-                 value=0.0,
-                 services=None,
-                 os=None,
-                 processes=None,
-                 access=None,
-                 discovered=None,
-                 connection_error=False,
-                 permission_error=False,
-                 undefined_error=False,
-                 newly_discovered=None):
+                 success: bool,
+                 value: float = 0.0,
+                 services: dict[str, Any] | None = None,
+                 os: dict[str, Any] | None = None,
+                 processes: dict[str, Any] | None = None,
+                 access: Any = None,
+                 discovered: dict[Address, bool] | None = None,
+                 connection_error: bool = False,
+                 permission_error: bool = False,
+                 undefined_error: bool = False,
+                 newly_discovered: dict[Address, bool] | None = None) -> None:
         """
         Parameters
         ----------
@@ -629,7 +637,7 @@ class ActionResult:
         else:
             self.newly_discovered = {}
 
-    def info(self):
+    def info(self) -> dict[str, Any]:
         """Get results as dict
 
         Returns
@@ -650,14 +658,14 @@ class ActionResult:
             newly_discovered=self.newly_discovered
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         output = ["ActionObservation:"]
         for k, val in self.info().items():
             output.append(f"  {k}={val}")
         return "\n".join(output)
 
 
-class FlatActionSpace(spaces.Discrete):
+class FlatActionSpace(spaces.Discrete):  # type: ignore[misc]  # gym spaces are untyped
     """Flat Action space for NASim environment.
 
     Inherits and implements the gym.spaces.Discrete action space
@@ -672,7 +680,7 @@ class FlatActionSpace(spaces.Discrete):
         the list of the Actions in the action space
     """
 
-    def __init__(self, scenario):
+    def __init__(self, scenario: "Scenario") -> None:
         """
         Parameters
         ---------
@@ -682,7 +690,7 @@ class FlatActionSpace(spaces.Discrete):
         self.actions = load_action_list(scenario)
         super().__init__(len(self.actions))
 
-    def get_action(self, action_idx):
+    def get_action(self, action_idx: int) -> Action:
         """Get Action object corresponding to action idx
 
         Parameters
@@ -701,7 +709,7 @@ class FlatActionSpace(spaces.Discrete):
         return self.actions[action_idx]
 
 
-class ParameterisedActionSpace(spaces.MultiDiscrete):
+class ParameterisedActionSpace(spaces.MultiDiscrete):  # type: ignore[misc]  # gym spaces are untyped
     """A parameterised action space for NASim environment.
 
     Inherits and implements the gym.spaces.MultiDiscrete action space, where
@@ -752,7 +760,7 @@ class ParameterisedActionSpace(spaces.MultiDiscrete):
         the list of all the Actions in the action space
     """
 
-    action_types = [
+    action_types: list[type[Action]] = [
         Exploit,
         PrivilegeEscalation,
         ServiceScan,
@@ -761,7 +769,7 @@ class ParameterisedActionSpace(spaces.MultiDiscrete):
         ProcessScan
     ]
 
-    def __init__(self, scenario):
+    def __init__(self, scenario: "Scenario") -> None:
         """
         Parameters
         ----------
@@ -782,7 +790,7 @@ class ParameterisedActionSpace(spaces.MultiDiscrete):
 
         super().__init__(nvec)
 
-    def get_action(self, action_vec):
+    def get_action(self, action_vec: Sequence[int] | NDArray[Any]) -> Action:
         """Get Action object corresponding to action vector.
 
         Parameters
@@ -837,7 +845,7 @@ class ParameterisedActionSpace(spaces.MultiDiscrete):
             return NoOp()
         return a_class(target=target, **a_def)
 
-    def _get_scan_action_def(self, a_class):
+    def _get_scan_action_def(self, a_class: type[Action]) -> dict[str, Any]:
         """Get the constants for scan actions definitions """
         if a_class == ServiceScan:
             cost = self.scenario.service_scan_cost
@@ -851,7 +859,9 @@ class ParameterisedActionSpace(spaces.MultiDiscrete):
             raise TypeError(f"Not implemented for Action class {a_class}")
         return {"cost": cost}
 
-    def _get_exploit_def(self, service, os):
+    def _get_exploit_def(
+        self, service: str, os: str | None
+    ) -> dict[str, Any] | None:
         """Check if exploit parameters are valid """
         e_map = self.scenario.exploit_map
         if service not in e_map:
@@ -860,7 +870,9 @@ class ParameterisedActionSpace(spaces.MultiDiscrete):
             return None
         return e_map[service][os]
 
-    def _get_privesc_def(self, proc, os):
+    def _get_privesc_def(
+        self, proc: str, os: str | None
+    ) -> dict[str, Any] | None:
         """Check if privilege escalation parameters are valid """
         pe_map = self.scenario.privesc_map
         if proc not in pe_map:

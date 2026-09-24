@@ -14,13 +14,16 @@ $ python bruteforce_agent.py --help
 """
 
 from itertools import product
+from typing import cast
 
 from nasimemu import nasim
+from nasimemu.nasim.envs.environment import NASimEnv
 
 LINE_BREAK = "-"*60
 
 
-def run_bruteforce_agent(env, step_limit=1e6, verbose=True):
+def run_bruteforce_agent(env: NASimEnv, step_limit: float = 1e6,
+                         verbose: bool = True) -> tuple[int, float, bool]:
     """Run bruteforce agent on nasim environment.
 
     Parameters
@@ -48,10 +51,11 @@ def run_bruteforce_agent(env, step_limit=1e6, verbose=True):
         print("t: Reward")
 
     env.reset()
-    total_reward = 0
+    total_reward = 0.0
     done = False
     steps = 0
     cycle_complete = False
+    act: int | tuple[int, ...]
 
     if env.flat_actions:
         act = 0
@@ -60,7 +64,7 @@ def run_bruteforce_agent(env, step_limit=1e6, verbose=True):
 
     while not done and steps < step_limit:
         if env.flat_actions:
-            act = (act + 1) % env.action_space.n
+            act = (cast(int, act) + 1) % env.action_space.n
             cycle_complete = (steps > 0 and act == 0)
         else:
             try:

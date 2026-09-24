@@ -1,15 +1,18 @@
 """This module contains functionality for loading network scenarios from yaml
 files.
 """
+from collections.abc import Collection
+from typing import Any
+
 import math, random, numpy as np
 
 import nasimemu.nasim.scenarios.utils as u
-from nasimemu.nasim.scenarios import Scenario
+from nasimemu.nasim.scenarios.scenario import Address, Scenario
 from nasimemu.nasim.scenarios.host import Host
 
 
 # dictionary of valid key names and value types for config file
-VALID_CONFIG_KEYS = {
+VALID_CONFIG_KEYS: dict[str, type | tuple[type, ...]] = {
     u.SUBNETS: list,
     u.TOPOLOGY: list,
     u.SENSITIVE_HOSTS: dict,
@@ -26,7 +29,7 @@ VALID_CONFIG_KEYS = {
     u.FIREWALL: dict
 }
 
-OPTIONAL_CONFIG_KEYS = {u.STEP_LIMIT: int}
+OPTIONAL_CONFIG_KEYS: dict[str, type | tuple[type, ...]] = {u.STEP_LIMIT: int}
 
 VALID_ACCESS_VALUES = ["user", "root", u.USER_ACCESS, u.ROOT_ACCESS]
 ACCESS_LEVEL_MAP = {
@@ -36,7 +39,7 @@ ACCESS_LEVEL_MAP = {
 
 
 # required keys for exploits
-EXPLOIT_KEYS = {
+EXPLOIT_KEYS: dict[str, type | tuple[type, ...]] = {
     u.EXPLOIT_SERVICE: str,
     u.EXPLOIT_OS: str,
     u.EXPLOIT_PROB: (int, float),
@@ -45,7 +48,7 @@ EXPLOIT_KEYS = {
 }
 
 # required keys for privesc actions
-PRIVESC_KEYS = {
+PRIVESC_KEYS: dict[str, type | tuple[type, ...]] = {
     u.PRIVESC_OS: str,
     u.PRIVESC_PROCESS: str,
     u.PRIVESC_PROB: (int, float),
@@ -63,7 +66,7 @@ HOST_CONFIG_KEYS = {
 
 class ScenarioLoaderV2:
 
-    def load(self, file_path, name=None):
+    def load(self, file_path: str, name: str | None = None) -> Scenario:
         """Load the scenario from file
 
         Arguments
@@ -108,8 +111,8 @@ class ScenarioLoaderV2:
 
         return self._construct_scenario()
 
-    def _construct_scenario(self):
-        scenario_dict = dict()
+    def _construct_scenario(self) -> Scenario:
+        scenario_dict: dict[str, Any] = dict()
         scenario_dict[u.SUBNETS] = self.subnets
         scenario_dict[u.TOPOLOGY] = self.topology
         scenario_dict[u.OS] = self.os
@@ -131,7 +134,7 @@ class ScenarioLoaderV2:
             scenario_dict, name=self.name, generated=False
         )
 
-    def _check_scenario_sections_valid(self):
+    def _check_scenario_sections_valid(self) -> None:
         """Checks if scenario dictionary contains all required sections and
         they are valid type.
         """
@@ -154,7 +157,7 @@ class ScenarioLoaderV2:
                 (f"{v} invalid type for config file key '{k}': {type(v)}"
                  f" != {expected_type}")
 
-    def _parse_subnets(self):
+    def _parse_subnets(self) -> None:
         subnets = self.yaml_dict[u.SUBNETS]
 
         for s_id, subnet in enumerate(subnets):
@@ -169,19 +172,19 @@ class ScenarioLoaderV2:
         self.subnets = subnets
         self.num_hosts = sum(subnets)-1
 
-    def _validate_subnets(self, subnets):
+    def _validate_subnets(self, subnets: list[Any]) -> None:
         # check subnets is valid list of positive ints
         assert len(subnets) > 0, "Subnets cannot be empty list"
         for subnet_size in subnets:
             assert type(subnet_size) is int and subnet_size > 0, \
                 f"{subnet_size} invalid subnet size, must be positive int"
 
-    def _parse_topology(self):
+    def _parse_topology(self) -> None:
         topology = self.yaml_dict[u.TOPOLOGY]
         self._validate_topology(topology)
         self.topology = topology
 
-    def _validate_topology(self, topology):
+    def _validate_topology(self, topology: list[Any]) -> None:
         # check topology is valid adjacency matrix
         assert len(topology) == len(self.subnets), \
             ("Number of rows in topology adjacency matrix must equal "
@@ -198,40 +201,40 @@ class ScenarioLoaderV2:
                     ("Subnet_connections adjaceny matrix must contain only"
                      f" 1 (connected) or 0 (not connected): {col} invalid")
 
-    def _parse_os(self):
+    def _parse_os(self) -> None:
         os = self.yaml_dict[u.OS]
         self._validate_os(os)
         self.os = os
 
-    def _validate_os(self, os):
+    def _validate_os(self, os: list[str]) -> None:
         assert len(os) > 0, \
             f"{len(os)}. Invalid number of OSs, must be >= 1"
         assert len(os) == len(set(os)), \
             f"{os}. OSs must not contain duplicates"
 
-    def _parse_services(self):
+    def _parse_services(self) -> None:
         services = self.yaml_dict[u.SERVICES]
         self._validate_services(services)
         self.services = services
 
-    def _validate_services(self, services):
+    def _validate_services(self, services: list[str]) -> None:
         assert len(services) > 0, \
            f"{len(services)}. Invalid number of services, must be > 0"
         assert len(services) == len(set(services)), \
             f"{services}. Services must not contain duplicates"
 
-    def _parse_processes(self):
+    def _parse_processes(self) -> None:
         processes = self.yaml_dict[u.PROCESSES]
         self._validate_processes(processes)
         self.processes = processes
 
-    def _validate_processes(self, processes):
+    def _validate_processes(self, processes: list[str]) -> None:
         assert len(processes) >= 1, \
             f"{len(processes)}. Invalid number of services, must be > 0"
         assert len(processes) == len(set(processes)), \
             f"{processes}. Processes must not contain duplicates"
 
-    def _parse_sensitive_hosts(self):
+    def _parse_sensitive_hosts(self) -> None:
         sensitive_hosts = self.yaml_dict[u.SENSITIVE_HOSTS]
         self.sensitive_hosts = dict()
 
@@ -251,7 +254,7 @@ class ScenarioLoaderV2:
         # for address, value in sensitive_hosts.items():
         #     self.sensitive_hosts[eval(address)] = value
 
-    def _validate_sensitive_hosts(self, sensitive_hosts):
+    def _validate_sensitive_hosts(self, sensitive_hosts: dict[str, Any]) -> None:
         # check sensitive_hosts is valid dict of (subnet, id) : value
         assert len(sensitive_hosts) > 0, \
             ("Number of sensitive hosts must be >= 1: "
@@ -289,14 +292,14 @@ class ScenarioLoaderV2:
                     ("Sensitive hosts list must not contain duplicate host "
                      f"addresses: {m} == {n}")
 
-    def _is_valid_subnet_ID(self, subnet_ID):
+    def _is_valid_subnet_ID(self, subnet_ID: Any) -> bool:
         if type(subnet_ID) is not int \
            or subnet_ID < 1 \
            or subnet_ID > len(self.subnets):
             return False
         return True
 
-    def _is_valid_host_address(self, subnet_ID, host_ID):
+    def _is_valid_host_address(self, subnet_ID: Any, host_ID: Any) -> bool:
         if not self._is_valid_subnet_ID(subnet_ID):
             return False
         if type(host_ID) is not int \
@@ -305,16 +308,16 @@ class ScenarioLoaderV2:
             return False
         return True
 
-    def _parse_exploits(self):
+    def _parse_exploits(self) -> None:
         exploits = self.yaml_dict[u.EXPLOITS]
         self._validate_exploits(exploits)
         self.exploits = exploits
 
-    def _validate_exploits(self, exploits):
+    def _validate_exploits(self, exploits: dict[str, Any]) -> None:
         for e_name, e in exploits.items():
             self._validate_single_exploit(e_name, e)
 
-    def _validate_single_exploit(self, e_name, e):
+    def _validate_single_exploit(self, e_name: str, e: Any) -> None:
         assert isinstance(e, dict), \
             f"{e_name}. Exploit must be a dict."
 
@@ -347,15 +350,15 @@ class ScenarioLoaderV2:
         if isinstance(e[u.EXPLOIT_ACCESS], str):
             e[u.EXPLOIT_ACCESS] = ACCESS_LEVEL_MAP[e[u.EXPLOIT_ACCESS]]
 
-    def _parse_privescs(self):
+    def _parse_privescs(self) -> None:
         self.privescs = self.yaml_dict[u.PRIVESCS]
         self._validate_privescs(self.privescs)
 
-    def _validate_privescs(self, privescs):
+    def _validate_privescs(self, privescs: dict[str, Any]) -> None:
         for pe_name, pe in privescs.items():
             self._validate_single_privesc(pe_name, pe)
 
-    def _validate_single_privesc(self, pe_name, pe):
+    def _validate_single_privesc(self, pe_name: str, pe: Any) -> None:
         s_name = "Priviledge Escalation"
 
         assert isinstance(pe, dict), f"{pe_name}. {s_name} must be a dict."
@@ -390,7 +393,7 @@ class ScenarioLoaderV2:
         if isinstance(pe[u.PRIVESC_ACCESS], str):
             pe[u.PRIVESC_ACCESS] = ACCESS_LEVEL_MAP[pe[u.PRIVESC_ACCESS]]
 
-    def _parse_scan_costs(self):
+    def _parse_scan_costs(self) -> None:
         self.os_scan_cost = self.yaml_dict[u.OS_SCAN_COST]
         self.service_scan_cost = self.yaml_dict[u.SERVICE_SCAN_COST]
         self.subnet_scan_cost = self.yaml_dict[u.SUBNET_SCAN_COST]
@@ -403,12 +406,12 @@ class ScenarioLoaderV2:
         ]:
             self._validate_scan_cost(n, c)
 
-    def _validate_scan_cost(self, scan_name, scan_cost):
+    def _validate_scan_cost(self, scan_name: str, scan_cost: float) -> None:
         assert scan_cost >= 0, f"{scan_name} Scan Cost must be >= 0."
 
 
-    def _parse_host_configs(self):
-        def is_for_os(x, os): # x is service or process
+    def _parse_host_configs(self) -> None:
+        def is_for_os(x: str | None, os: str) -> bool: # x is service or process
             if x is None:
                 return True
 
@@ -436,10 +439,10 @@ class ScenarioLoaderV2:
                     # no_processes = random.randint(1, len(processes))
 
                     # skewed distribution: each element has a weight p^n
-                    def skew_dist(n, p=0.5):
+                    def skew_dist(n: int, p: float = 0.5) -> int:
                         vals = np.arange(n) + 1
                         dist = p ** vals
-                        return random.choices(vals, weights=dist, k=1)[0]
+                        return int(random.choices(vals, weights=dist.tolist(), k=1)[0])
 
                     no_services = skew_dist(len(non_sensitive_services))
                     no_processes = skew_dist(len(processes))
@@ -466,7 +469,7 @@ class ScenarioLoaderV2:
 
         self._validate_host_configs(self.host_configs)
 
-    def _validate_host_configs(self, host_configs):
+    def _validate_host_configs(self, host_configs: dict[Any, Any]) -> None:
         assert len(host_configs) == self.num_hosts, \
             ("Number of host configurations must match the number of hosts "
              f"in network: {len(host_configs)} != {self.num_hosts}")
@@ -478,7 +481,7 @@ class ScenarioLoaderV2:
         for addr, cfg in host_configs.items():
             self._validate_host_config(addr, cfg)
 
-    def _has_all_host_addresses(self, addresses):
+    def _has_all_host_addresses(self, addresses: Collection[Any]) -> bool:
         """Check that list of (subnet_ID, host_ID) tuples contains all
         addresses on network based on subnets list
         """
@@ -489,7 +492,7 @@ class ScenarioLoaderV2:
                     return False
         return True
 
-    def _validate_host_config(self, addr, cfg):
+    def _validate_host_config(self, addr: Any, cfg: Any) -> None:
         """Check if a host config is valid or not given the list of exploits available
         N.B. each host config must contain at least one service
         """
@@ -556,7 +559,7 @@ class ScenarioLoaderV2:
                      f"or be excluded the host config. The value {host_value} "
                      f"is invalid as it does not match value {sh_value}.")
 
-    def _validate_host_address(self, addr, err_prefix=""):
+    def _validate_host_address(self, addr: Any, err_prefix: str = "") -> bool:
         try:
             addr = eval(addr)
         except Exception:
@@ -577,7 +580,7 @@ class ScenarioLoaderV2:
              f"0 < host addr < {self.subnets[addr[0]]}. {addr[1]} is invalid.")
         return True
 
-    def _parse_firewall(self):
+    def _parse_firewall(self) -> None:
         firewall = self.yaml_dict[u.FIREWALL]
 
         if firewall == '_subnets':
@@ -600,7 +603,7 @@ class ScenarioLoaderV2:
             else:
                 self.firewall[eval(connect)] = v
 
-    def _validate_firewall(self, firewall):
+    def _validate_firewall(self, firewall: dict[str, Any]) -> None:
         assert self._contains_all_required_firewalls(firewall), \
             ("Firewall dictionary must contain two entries for each subnet "
              "connection in network (including from outside) as defined by "
@@ -611,7 +614,7 @@ class ScenarioLoaderV2:
                 ("Firewall setting must be a list, contain only valid "
                  f"services and contain no duplicates: {f} is not valid")
 
-    def _contains_all_required_firewalls(self, firewall):
+    def _contains_all_required_firewalls(self, firewall: dict[str, Any]) -> bool:
         for src, row in enumerate(self.topology):
             for dest, col in enumerate(row):
                 if src == dest:
@@ -621,7 +624,7 @@ class ScenarioLoaderV2:
                     return False
         return True
 
-    def _is_valid_firewall_setting(self, f):
+    def _is_valid_firewall_setting(self, f: Any) -> bool:
         if type(f) != list:
             return False
         for service in f:
@@ -633,7 +636,7 @@ class ScenarioLoaderV2:
                     return False
         return True
 
-    def _parse_hosts(self):
+    def _parse_hosts(self) -> None:
         """Returns ordered dictionary of hosts in network, with address as
         keys and host objects as values
         """
@@ -651,7 +654,9 @@ class ScenarioLoaderV2:
             )
         self.hosts = hosts
 
-    def _construct_host_config(self, host_cfg):
+    def _construct_host_config(
+            self, host_cfg: dict[str, Any]
+    ) -> tuple[dict[str, bool], dict[str, bool], dict[str, bool]]:
         os_cfg = {}
         for os_name in self.os:
             os_cfg[os_name] = os_name == host_cfg[u.HOST_OS]
@@ -663,12 +668,12 @@ class ScenarioLoaderV2:
             processes_cfg[process] = process in host_cfg[u.HOST_PROCESSES]
         return os_cfg, services_cfg, processes_cfg
 
-    def _get_host_value(self, address, host_cfg):
+    def _get_host_value(self, address: Address, host_cfg: dict[str, Any]) -> float:
         if address in self.sensitive_hosts:
             return float(self.sensitive_hosts[address])
         return float(host_cfg.get(u.HOST_VALUE, u.DEFAULT_HOST_VALUE))
 
-    def _parse_step_limit(self):
+    def _parse_step_limit(self) -> None:
         if u.STEP_LIMIT not in self.yaml_dict:
             step_limit = None
         else:

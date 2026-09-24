@@ -1,4 +1,7 @@
 
+from typing import Any
+
+
 class Host:
     """A single host in the network.
 
@@ -8,17 +11,17 @@ class Host:
     """
 
     def __init__(self,
-                 address,
-                 os,
-                 services,
-                 processes,
-                 firewall,
-                 value=0.0,
-                 discovery_value=0.0,
-                 compromised=False,
-                 reachable=False,
-                 discovered=False,
-                 access=0):
+                 address: tuple[int, int],
+                 os: dict[str, bool],
+                 services: dict[str, bool],
+                 processes: dict[str, bool],
+                 firewall: dict[Any, list[str]] | None,
+                 value: float = 0.0,
+                 discovery_value: float = 0.0,
+                 compromised: bool = False,
+                 reachable: bool = False,
+                 discovered: bool = False,
+                 access: int = 0) -> None:
         """
         Arguments
         ---------
@@ -32,10 +35,10 @@ class Host:
         processes : dict
             a (process_name, bool) dictionary indicating which processes are
             running on host or not
-        firewall : dict
+        firewall : dict or None
             a (addr, denied services) dictionary defining which services are
             blocked from other hosts in the network. If other host not in
-            firewall assumes all services allowed
+            firewall assumes all services allowed. None means no firewall
         value : float, optional
             value of the host (default=0.0)
         discovery_value : float, optional
@@ -54,7 +57,7 @@ class Host:
         self.os = os
         self.services = services
         self.processes = processes
-        self.firewall = firewall
+        self.firewall = {} if firewall is None else firewall
         self.value = value
         self.discovery_value = discovery_value
         self.compromised = compromised
@@ -62,19 +65,19 @@ class Host:
         self.discovered = discovered
         self.access = access
 
-    def is_running_service(self, service):
+    def is_running_service(self, service: str) -> bool:
         return self.services[service]
 
-    def is_running_os(self, os):
+    def is_running_os(self, os: str) -> bool:
         return self.os[os]
 
-    def is_running_process(self, process):
+    def is_running_process(self, process: str) -> bool:
         return self.processes[process]
 
-    def traffic_permitted(self, addr, service):
+    def traffic_permitted(self, addr: Any, service: str) -> bool:
         return service not in self.firewall.get(addr, [])
 
-    def __str__(self):
+    def __str__(self) -> str:
         output = ["Host: {"]
         output.append(f"\taddress: {self.address}")
         output.append(f"\tcompromised: {self.compromised}")
@@ -98,10 +101,10 @@ class Host:
         output.append("\t}")
 
         output.append("\tfirewall: {")
-        for addr, val in self.firewall.items():
-            output.append(f"\t\t{addr}: {val}")
+        for addr, denied in self.firewall.items():
+            output.append(f"\t\t{addr}: {denied}")
         output.append("\t}")
         return "\n".join(output)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Host: {self.address}"

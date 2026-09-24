@@ -6,9 +6,10 @@ control the size of the problem (see scenario.generator for more info):
 There are also some parameters, where default values are used for all
 scenarios, see DEFAULTS dict.
 """
+from typing import Any
 
 # generated environment constants
-DEFAULTS = dict(
+DEFAULTS: dict[str, Any] = dict(
     num_exploits=None,
     num_privescs=None,
     r_sensitive=100,

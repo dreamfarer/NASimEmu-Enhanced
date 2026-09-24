@@ -15,11 +15,13 @@ $ python random_agent.py --help
 import numpy as np
 
 from nasimemu import nasim
+from nasimemu.nasim.envs.environment import NASimEnv
 
 LINE_BREAK = "-"*60
 
 
-def run_random_agent(env, step_limit=1e6, verbose=True):
+def run_random_agent(env: NASimEnv, step_limit: float = 1e6,
+                     verbose: bool = True) -> tuple[int, float, bool]:
     if verbose:
         print(LINE_BREAK)
         print("STARTING EPISODE")
@@ -27,7 +29,7 @@ def run_random_agent(env, step_limit=1e6, verbose=True):
         print(f"t: Reward")
 
     env.reset()
-    total_reward = 0
+    total_reward = 0.0
     done = False
     t = 0
     a = 0

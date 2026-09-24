@@ -24,11 +24,16 @@ to be an example implementation that can be used as a reference for building
 your own agents.
 """
 import random
+from typing import Any
+
 import numpy as np
+from numpy.typing import NDArray
 from gym import error
 from pprint import pprint
 
 from nasimemu import nasim
+from nasimemu.nasim.envs.action import FlatActionSpace
+from nasimemu.nasim.envs.environment import NASimEnv
 
 try:
     import torch
@@ -45,7 +50,10 @@ except ImportError as e:
 
 class ReplayMemory:
 
-    def __init__(self, capacity, s_dims, device="cpu"):
+    def __init__(self,
+                 capacity: int,
+                 s_dims: tuple[int, ...],
+                 device: Any = "cpu") -> None:
         self.capacity = capacity
         self.device = device
         self.s_buf = np.zeros((capacity, *s_dims), dtype=np.float32)
@@ -55,7 +63,12 @@ class ReplayMemory:
         self.done_buf = np.zeros(capacity, dtype=np.float32)
         self.ptr, self.size = 0, 0
 
-    def store(self, s, a, next_s, r, done):
+    def store(self,
+              s: NDArray[Any],
+              a: int,
+              next_s: NDArray[Any],
+              r: float,
+              done: bool) -> None:
         self.s_buf[self.ptr] = s
         self.a_buf[self.ptr] = a
         self.next_s_buf[self.ptr] = next_s
@@ -64,7 +77,7 @@ class ReplayMemory:
         self.ptr = (self.ptr + 1) % self.capacity
         self.size = min(self.size+1, self.capacity)
 
-    def sample_batch(self, batch_size):
+    def sample_batch(self, batch_size: int) -> list[Any]:
         sample_idxs = np.random.choice(self.size, batch_size)
         batch = [self.s_buf[sample_idxs],
                  self.a_buf[sample_idxs],
@@ -74,29 +87,32 @@ class ReplayMemory:
         return [torch.from_numpy(buf).to(self.device) for buf in batch]
 
 
-class DQN(nn.Module):
+class DQN(nn.Module):  # type: ignore[misc]  # torch is untyped here
     """A simple Deep Q-Network """
 
-    def __init__(self, input_dim, layers, num_actions):
+    def __init__(self,
+                 input_dim: tuple[int, ...],
+                 layers: list[int],
+                 num_actions: int) -> None:
         super().__init__()
         self.layers = nn.ModuleList([nn.Linear(input_dim[0], layers[0])])
         for l in range(1, len(layers)):
             self.layers.append(nn.Linear(layers[l-1], layers[l]))
         self.out = nn.Linear(layers[-1], num_actions)
 
-    def forward(self, x):
+    def forward(self, x: Any) -> Any:
         for layer in self.layers:
             x = F.relu(layer(x))
         x = self.out(x)
         return x
 
-    def save_DQN(self, file_path):
+    def save_DQN(self, file_path: str) -> None:
         torch.save(self.state_dict(), file_path)
 
-    def load_DQN(self, file_path):
+    def load_DQN(self, file_path: str) -> None:
         self.load_state_dict(torch.load(file_path))
 
-    def get_action(self, x):
+    def get_action(self, x: Any) -> Any:
         with torch.no_grad():
             if len(x.shape) == 1:
                 x = x.view(1, -1)
@@ -107,19 +123,19 @@ class DQNAgent:
     """A simple Deep Q-Network Agent """
 
     def __init__(self,
-                 env,
-                 seed=None,
-                 lr=0.001,
-                 training_steps=20000,
-                 batch_size=32,
-                 replay_size=10000,
-                 final_epsilon=0.05,
-                 exploration_steps=10000,
-                 gamma=0.99,
-                 hidden_sizes=[64, 64],
-                 target_update_freq=1000,
-                 verbose=True,
-                 **kwargs):
+                 env: NASimEnv,
+                 seed: int | None = None,
+                 lr: float = 0.001,
+                 training_steps: int = 20000,
+                 batch_size: int = 32,
+                 replay_size: int = 10000,
+                 final_epsilon: float = 0.05,
+                 exploration_steps: int = 10000,
+                 gamma: float = 0.99,
+                 hidden_sizes: list[int] = [64, 64],
+                 target_update_freq: int = 1000,
+                 verbose: bool = True,
+                 **kwargs: Any) -> None:
 
         # This DQN implementation only works for flat actions
         assert env.flat_actions
@@ -136,8 +152,9 @@ class DQNAgent:
         # envirnment setup
         self.env = env
 
-        self.num_actions = self.env.action_space.n
-        self.obs_dim = self.env.observation_space.shape
+        self.num_actions: int = self.env.action_space.n
+        assert self.env.observation_space is not None
+        self.obs_dim: tuple[int, ...] = self.env.observation_space.shape
 
         # logger setup
         self.logger = SummaryWriter()
@@ -178,24 +195,25 @@ class DQNAgent:
                                    self.obs_dim,
                                    self.device)
 
-    def save(self, save_path):
+    def save(self, save_path: str) -> None:
         self.dqn.save_DQN(save_path)
 
-    def load(self, load_path):
+    def load(self, load_path: str) -> None:
         self.dqn.load_DQN(load_path)
 
-    def get_epsilon(self):
+    def get_epsilon(self) -> float:
         if self.steps_done < self.exploration_steps:
-            return self.epsilon_schedule[self.steps_done]
+            return float(self.epsilon_schedule[self.steps_done])
         return self.final_epsilon
 
-    def get_egreedy_action(self, o, epsilon):
+    def get_egreedy_action(self, o: NDArray[Any], epsilon: float) -> int:
         if random.random() > epsilon:
-            o = torch.from_numpy(o).float().to(self.device)
-            return self.dqn.get_action(o).cpu().item()
+            o_t = torch.from_numpy(o).float().to(self.device)
+            a: int = self.dqn.get_action(o_t).cpu().item()
+            return a
         return random.randint(0, self.num_actions-1)
 
-    def optimize(self):
+    def optimize(self) -> tuple[float, float]:
         batch = self.replay.sample_batch(self.batch_size)
         s_batch, a_batch, next_s_batch, r_batch, d_batch = batch
 
@@ -224,7 +242,7 @@ class DQNAgent:
         mean_v = q_vals_max.mean().item()
         return loss.item(), mean_v
 
-    def train(self):
+    def train(self) -> None:
         if self.verbose:
             print("\nStarting training")
 
@@ -266,12 +284,12 @@ class DQNAgent:
             print(f"\treturn = {ep_return}")
             print(f"\tgoal = {goal}")
 
-    def run_train_episode(self, step_limit):
+    def run_train_episode(self, step_limit: int) -> tuple[float, int, bool]:
         o = self.env.reset()
         done = False
 
         steps = 0
-        episode_return = 0
+        episode_return = 0.0
 
         while not done and steps < step_limit:
             a = self.get_egreedy_action(o, self.get_epsilon())
@@ -290,17 +308,18 @@ class DQNAgent:
         return episode_return, steps, self.env.goal_reached()
 
     def run_eval_episode(self,
-                         env=None,
-                         render=False,
-                         eval_epsilon=0.05,
-                         render_mode="readable"):
+                         env: NASimEnv | None = None,
+                         render: bool = False,
+                         eval_epsilon: float = 0.05,
+                         render_mode: str = "readable"
+                         ) -> tuple[float, int, bool]:
         if env is None:
             env = self.env
         o = env.reset()
         done = False
 
         steps = 0
-        episode_return = 0
+        episode_return = 0.0
 
         line_break = "="*60
         if render:
@@ -320,6 +339,7 @@ class DQNAgent:
                 print("\n" + line_break)
                 print(f"Step {steps}")
                 print(line_break)
+                assert isinstance(env.action_space, FlatActionSpace)
                 print(f"Action Performed = {env.action_space.get_action(a)}")
                 env.render(render_mode)
                 print(f"Reward = {r}")

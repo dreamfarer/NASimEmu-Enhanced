@@ -1,21 +1,24 @@
 import gym, random, copy
+from typing import Any
 import numpy as np
+from numpy.typing import NDArray
 from nasimemu import nasim, env_utils
 
-from nasimemu.nasim.envs.action import Exploit, PrivilegeEscalation, ServiceScan, OSScan, SubnetScan, ProcessScan, NoOp
-import nasimemu.nasim.scenarios.benchmark as benchmark
+from nasimemu.nasim.envs.action import Action, Exploit, PrivilegeEscalation, ServiceScan, OSScan, SubnetScan, ProcessScan, NoOp
+from nasimemu.nasim.scenarios import load_scenario
+from nasimemu.nasim.scenarios.benchmark.generated import AVAIL_GEN_BENCHMARKS
 
-from nasimemu.nasim.envs import NASimEnv
+from nasimemu.nasim.envs.environment import NASimEnv
 from nasimemu.nasim.envs.host_vector import HostVector
 from nasimemu.env_emu import EmulatedNASimEnv
-import traceback 
+import traceback
 
 class TerminalAction():
     pass
 
 # with deterministic exploits & privescs
 class NASimScenarioGenerator(nasim.scenarios.generator.ScenarioGenerator):
-    def _generate_exploits(self, num_exploits, exploit_cost, exploit_probs):
+    def _generate_exploits(self, num_exploits: int, exploit_cost: float, exploit_probs: Any) -> None:
         rng = np.random.get_state()
 
         np.random.seed(12345)
@@ -24,7 +27,7 @@ class NASimScenarioGenerator(nasim.scenarios.generator.ScenarioGenerator):
 
         return exploits
 
-    def _generate_privescs(self, num_privesc, privesc_cost, privesc_probs):
+    def _generate_privescs(self, num_privesc: int, privesc_cost: float, privesc_probs: Any) -> None:
         rng = np.random.get_state()
 
         np.random.seed(12346)
@@ -34,16 +37,16 @@ class NASimScenarioGenerator(nasim.scenarios.generator.ScenarioGenerator):
         return privescs
 
 class PartiallyObservableWrapper():
-    def reset(self, s):
-        self.__obs = dict()
+    def reset(self, s: NDArray[Any]) -> NDArray[Any]:
+        self.__obs: dict[Any, Any] = dict()
         obs = self.__update_obs(s)
         return obs
 
-    def step(self, s):
+    def step(self, s: NDArray[Any]) -> NDArray[Any]:
         obs = self.__update_obs(s)
         return obs
 
-    def __update_obs(self, s):
+    def __update_obs(self, s: NDArray[Any]) -> NDArray[Any]:
         for host_data in s[:-1]:
             address = HostVector(host_data).address
 
@@ -63,8 +66,8 @@ class PartiallyObservableWrapper():
         return obs
 
 # observation_format in ['matrix', 'graph']
-class NASimEmuEnv(gym.Env):
-    def __init__(self, scenario_name, emulate=False, step_limit=None, random_init=False, observation_format='matrix', fully_obs=False, augment_with_action=False, verbose=False):
+class NASimEmuEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
+    def __init__(self, scenario_name: str, emulate: bool = False, step_limit: int | None = None, random_init: bool = False, observation_format: str = 'matrix', fully_obs: bool = False, augment_with_action: bool = False, verbose: bool = False) -> None:
         # different processes need different seeds
         random.seed()
         np.random.seed()
@@ -79,25 +82,25 @@ class NASimEmuEnv(gym.Env):
         self.scenario_name = scenario_name
         self.random_init = random_init
 
-    def _generate_env(self):
+    def _generate_env(self) -> None:
         if ':' in self.scenario_name: # there are multiple possible scenarios
             scenarios = self.scenario_name.split(':')
-            scenario = random.choice(scenarios)
+            scenario_name = random.choice(scenarios)
         else:
-            scenario = self.scenario_name
+            scenario_name = self.scenario_name
 
-        if scenario.endswith(".yaml"):        # static scenario
-            scenario = nasim.load_scenario(scenario)
+        if scenario_name.endswith(".yaml"):        # static scenario
+            scenario = load_scenario(scenario_name)
 
         else:   # generated scenario
-            scenario_params = benchmark.AVAIL_GEN_BENCHMARKS[scenario]
+            scenario_params = AVAIL_GEN_BENCHMARKS[scenario_name]
             scenario_params['step_limit'] = None
 
             generator = NASimScenarioGenerator()
             scenario = generator.generate(randomize_subnet_sizes=True, **scenario_params)
 
         if self.emulate:
-            self.env = EmulatedNASimEnv(scenario=scenario)
+            self.env: NASimEnv = EmulatedNASimEnv(scenario=scenario)
         else:
             self.env = NASimEnv(scenario, fully_obs=self.fully_obs, flat_actions=False, flat_obs=False)
 
@@ -109,17 +112,17 @@ class NASimEmuEnv(gym.Env):
         self.action_cls = [x[0] for x  in self.action_list]
 
         host_num_map = self.env.scenario.host_num_map
-        self.host_index = np.array( sorted(host_num_map, key=host_num_map.get) )# fixed order node index
+        self.host_index = np.array( sorted(host_num_map, key=lambda h: host_num_map[h]) )# fixed order node index
         self.subnet_index = np.array( [(x, -1) for x in range(len(self.env.scenario.subnets))] )
 
-        self.discovered_subnets = set()
-        self.subnet_graph = set() # (from, to)
+        self.discovered_subnets: set[int] = set()
+        self.subnet_graph: set[tuple[int, int]] = set() # (from, to)
 
-    def _create_action_lists(self):
+    def _create_action_lists(self) -> tuple[list[Any], list[Any], list[tuple[type[Action], dict[str, Any]]]]:
         exploit_list = sorted(self.env.scenario.exploits.items())
         privesc_list = sorted(self.env.scenario.privescs.items())
 
-        action_list = [
+        action_list: list[tuple[type[Action], dict[str, Any]]] = [
                 (ServiceScan, {'cost': self.env.scenario.service_scan_cost}),
                 (OSScan, {'cost': self.env.scenario.os_scan_cost}),
                 (SubnetScan, {'cost': self.env.scenario.subnet_scan_cost}),
@@ -134,7 +137,7 @@ class NASimEmuEnv(gym.Env):
 
         return exploit_list, privesc_list, action_list
 
-    def _translate_action(self, action):
+    def _translate_action(self, action: Any) -> Any:
         target, action_id = action
 
         if action_id == -1: # terminal action
@@ -145,14 +148,14 @@ class NASimEmuEnv(gym.Env):
         a = a_class(target=tuple(target), **a_params)
 
         if not self.emulate: # in emulation, we don't know the exact scenario configuration; hence the actions can be different
-            assert a in self.env.action_space.actions, "Failed to execute " + str(a)
+            assert (self.env.action_space is not None) and (a in self.env.action_space.actions), "Failed to execute " + str(a)
 
         return a
 
-    def _get_subnets(self, s):
+    def _get_subnets(self, s: NDArray[Any]) -> set[int]:
         return {HostVector(x).address[0] for x in s[:-1]}
 
-    def _augment_with_action(self, s, action):
+    def _augment_with_action(self, s: NDArray[Any], action: Any) -> NDArray[Any]:
         action_matrix = np.zeros((len(s), len(self.action_list)), dtype=np.float32)
 
         if action is not None:
@@ -168,7 +171,8 @@ class NASimEmuEnv(gym.Env):
         return s
 
     # action = ((subnet, host), action_id)
-    def step(self, action):
+    def step(self, action: Any) -> tuple[Any, float, bool, dict[str, Any]]:
+        s: Any
         if type(action) in [np.ndarray, list, tuple]:
             a = self._translate_action(action)
         else:
@@ -250,14 +254,14 @@ class NASimEmuEnv(gym.Env):
 
         return s, r, d, i
 
-    def reset(self):
+    def reset(self) -> Any:
         self.step_idx = 0
         self.r_tot = 0.
         self.captured = 0
 
         self._generate_env() # generate new env
 
-        s = self.env.reset()
+        s: Any = self.env.reset()
 
         if not self.fully_obs:
             s = self.env_po_wrapper.reset(s)
@@ -280,6 +284,7 @@ class NASimEmuEnv(gym.Env):
 
         # break the tie with random offset
         if self.random_init:
+            assert self.step_limit is not None
             self.step_idx = np.random.randint(self.step_limit)
             self.random_init = False
 
@@ -294,8 +299,8 @@ class NASimEmuEnv(gym.Env):
 
         return s
 
-    def render(self, s):
+    def render(self, s: NDArray[Any]) -> None:
         self.env.render(obs=s)
 
-    def render_state(self):
+    def render_state(self) -> None:
         self.env.render_state()

@@ -1,8 +1,15 @@
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
-from .utils import AccessLevel
+import numpy as np
+from numpy.typing import NDArray
+
+from .utils import AccessLevel, Address
+from .action import Action, ActionResult
 from .host_vector import HostVector
 from .observation import Observation
+
+if TYPE_CHECKING:
+    from .network import Network
 
 
 class State:
@@ -23,7 +30,9 @@ class State:
         to map host address to host row in the network tensor)
     """
 
-    def __init__(self, network_tensor, host_num_map):
+    def __init__(
+        self, network_tensor: NDArray[Any], host_num_map: dict[Address, int]
+    ) -> None:
         """
         Parameters
         ----------
@@ -37,7 +46,7 @@ class State:
         self.host_num_map = host_num_map
 
     @classmethod
-    def tensorize(cls, network):
+    def tensorize(cls, network: "Network") -> "State":
         h0 = network.hosts[(1, 0)]
         h0_vector = HostVector.vectorize(h0, network.address_space_bounds)
         tensor = np.zeros(
@@ -52,13 +61,13 @@ class State:
         return cls(tensor, network.host_num_map)
 
     @classmethod
-    def generate_initial_state(cls, network):
+    def generate_initial_state(cls, network: "Network") -> "State":
         cls.reset()
         state = cls.tensorize(network)
         return network.reset(state)
 
     @classmethod
-    def generate_random_initial_state(cls, network):
+    def generate_random_initial_state(cls, network: "Network") -> "State":
         h0 = network.hosts[(1, 0)]
         h0_vector = HostVector.vectorize_random(
             h0, network.address_space_bounds
@@ -77,28 +86,33 @@ class State:
         return network.reset(state)
 
     @classmethod
-    def from_numpy(cls, s_array, state_shape, host_num_map):
+    def from_numpy(
+        cls,
+        s_array: NDArray[Any],
+        state_shape: tuple[int, ...],
+        host_num_map: dict[Address, int]
+    ) -> "State":
         if s_array.shape != state_shape:
             s_array = s_array.reshape(state_shape)
         return State(s_array, host_num_map)
 
     @classmethod
-    def reset(cls):
+    def reset(cls) -> None:
         """Reset any class attributes for state """
         HostVector.reset()
 
     @property
-    def hosts(self):
+    def hosts(self) -> list[tuple[Address, HostVector]]:
         hosts = []
         for host_addr in self.host_num_map:
             hosts.append((host_addr, self.get_host(host_addr)))
         return hosts
 
-    def copy(self):
+    def copy(self) -> "State":
         new_tensor = np.copy(self.tensor)
         return State(new_tensor, self.host_num_map)
 
-    def get_initial_observation(self, fully_obs):
+    def get_initial_observation(self, fully_obs: bool) -> Observation:
         """Get the initial observation of network.
 
         Returns
@@ -121,7 +135,9 @@ class State:
             obs.update_from_host(host_idx, host_obs)
         return obs
 
-    def get_observation(self, action, action_result, fully_obs):
+    def get_observation(
+        self, action: Action, action_result: ActionResult, fully_obs: bool
+    ) -> Observation:
         """Get observation given last action and action result
 
         Parameters
@@ -200,74 +216,78 @@ class State:
         obs.update_from_host(t_idx, target_obs)
         return obs
 
-    def shape_flat(self):
+    def shape_flat(self) -> tuple[int, ...]:
         return self.numpy_flat().shape
 
-    def shape(self):
+    def shape(self) -> tuple[int, ...]:
         return self.tensor.shape
 
-    def numpy_flat(self):
+    def numpy_flat(self) -> NDArray[Any]:
         return self.tensor.flatten()
 
-    def numpy(self):
+    def numpy(self) -> NDArray[Any]:
         return self.tensor
 
-    def update_host(self, host_addr, host_vector):
+    def update_host(
+        self, host_addr: Address, host_vector: HostVector
+    ) -> None:
         host_idx = self.host_num_map[host_addr]
         self.tensor[host_idx] = host_vector.vector
 
-    def get_host(self, host_addr):
+    def get_host(self, host_addr: Address) -> HostVector:
         host_idx = self.host_num_map[host_addr]
         return HostVector(self.tensor[host_idx])
 
-    def get_host_idx(self, host_addr):
+    def get_host_idx(self, host_addr: Address) -> int:
         return self.host_num_map[host_addr]
 
-    def get_host_and_idx(self, host_addr):
+    def get_host_and_idx(self, host_addr: Address) -> tuple[int, HostVector]:
         host_idx = self.host_num_map[host_addr]
         return host_idx, HostVector(self.tensor[host_idx])
 
-    def host_reachable(self, host_addr):
+    def host_reachable(self, host_addr: Address) -> float:
         return self.get_host(host_addr).reachable
 
-    def host_compromised(self, host_addr):
+    def host_compromised(self, host_addr: Address) -> float:
         return self.get_host(host_addr).compromised
 
-    def host_discovered(self, host_addr):
+    def host_discovered(self, host_addr: Address) -> float:
         return self.get_host(host_addr).discovered
 
-    def host_has_access(self, host_addr, access_level):
+    def host_has_access(
+        self, host_addr: Address, access_level: AccessLevel
+    ) -> bool:
         return self.get_host(host_addr).access >= access_level
 
-    def set_host_compromised(self, host_addr):
+    def set_host_compromised(self, host_addr: Address) -> None:
         self.get_host(host_addr).compromised = True
 
-    def set_host_reachable(self, host_addr):
+    def set_host_reachable(self, host_addr: Address) -> None:
         self.get_host(host_addr).reachable = True
 
-    def set_host_discovered(self, host_addr):
+    def set_host_discovered(self, host_addr: Address) -> None:
         self.get_host(host_addr).discovered = True
 
-    def get_host_value(self, host_address):
+    def get_host_value(self, host_address: Any) -> Any:
         return self.hosts[host_address].get_value()
 
-    def host_is_running_service(self, host_addr, service):
+    def host_is_running_service(self, host_addr: Address, service: str) -> bool:
         return self.get_host(host_addr).is_running_service(service)
 
-    def host_is_running_os(self, host_addr, os):
+    def host_is_running_os(self, host_addr: Address, os: str) -> bool:
         return self.get_host(host_addr).is_running_os(os)
 
-    def get_total_host_value(self):
-        total_value = 0
+    def get_total_host_value(self) -> float:
+        total_value: float = 0
         for host_addr in self.host_num_map:
             host = self.get_host(host_addr)
             total_value += host.value
         return total_value
 
-    def state_size(self):
+    def state_size(self) -> int:
         return self.tensor.size
 
-    def get_readable(self):
+    def get_readable(self) -> list[dict[str, Any]]:
         host_obs = []
         for host_addr in self.host_num_map:
             host = self.get_host(host_addr)
@@ -275,15 +295,15 @@ class State:
             host_obs.append(readable_dict)
         return host_obs
 
-    def __str__(self):
+    def __str__(self) -> str:
         output = "\n--- State ---\n"
         output += "Hosts:\n"
         for host in self.hosts:
             output += str(host) + "\n"
         return output
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(str(self.tensor))
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return np.array_equal(self.tensor, other.tensor)
