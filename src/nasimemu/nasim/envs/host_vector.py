@@ -53,15 +53,15 @@ class HostVector:
     # number of OS in scenario
     num_os = None
     # map from OS name to its index in host vector
-    os_idx_map = {}
+    os_idx_map: dict[str, int] = {}
     # number of services in scenario
     num_services = None
     # map from service name to its index in host vector
-    service_idx_map = {}
+    service_idx_map: dict[str, int] = {}
     # number of processes in scenario
     num_processes = None
     # map from process name to its index in host vector
-    process_idx_map = {}
+    process_idx_map: dict[str, int] = {}
     # size of state for host vector (i.e. len of vector)
     state_size = None
 

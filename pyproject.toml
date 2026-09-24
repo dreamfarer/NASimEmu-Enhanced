@@ -24,6 +24,7 @@ dependencies = [
     "pyyaml", # For nasim
     "msgpack", # For pymetasploit3
     "requests", # For pymetasploit3
+    "urllib3", # For pymetasploit3
     "retry", # For pymetasploit3
     "pillow", # For nasim_problem rendering
     "plotly", # For nasim_problem debug
@@ -42,3 +43,11 @@ only-include = ["src", "README.md", "LICENSE", "pyproject.toml"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nasimemu"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src/nasimemu"]
+
+[[tool.mypy.overrides]]
+module = ["gym.*", "torch.*", "matplotlib.*", "plotly.*", "prettytable.*", "msgpack.*"]
+ignore_missing_imports = true

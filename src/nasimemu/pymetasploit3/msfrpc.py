@@ -9,9 +9,9 @@ import time
 import re
 import random
 import msgpack
-import requests.packages.urllib3
+import urllib3
 from retry import retry
-requests.packages.urllib3.disable_warnings()
+urllib3.disable_warnings()
 
 __all__ = [
     'MsfRpcError',

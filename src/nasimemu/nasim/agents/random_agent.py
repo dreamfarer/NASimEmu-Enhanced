@@ -96,13 +96,13 @@ if __name__ == "__main__":
             print(f"\tReward = {reward}")
             print(f"\tGoal reached = {done}")
 
-    run_steps = np.array(run_steps)
-    run_rewards = np.array(run_rewards)
+    steps_arr = np.array(run_steps)
+    rewards_arr = np.array(run_rewards)
 
     print(LINE_BREAK)
     print("Random Agent Runs Complete")
     print(LINE_BREAK)
-    print(f"Mean steps = {run_steps.mean():.2f} +/- {run_steps.std():.2f}")
-    print(f"Mean rewards = {run_rewards.mean():.2f} "
-          f"+/- {run_rewards.std():.2f}")
+    print(f"Mean steps = {steps_arr.mean():.2f} +/- {steps_arr.std():.2f}")
+    print(f"Mean rewards = {rewards_arr.mean():.2f} "
+          f"+/- {rewards_arr.std():.2f}")
     print(f"Goals reached = {run_goals} / {args.runs}")
