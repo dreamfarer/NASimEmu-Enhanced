@@ -4,10 +4,16 @@ This is the main class for storing and updating the state of a single host
 in the NASim environment.
 """
 
-import numpy as np
+from typing import TYPE_CHECKING, Any, cast
 
-from .utils import AccessLevel
-from .action import ActionResult
+import numpy as np
+from numpy.typing import NDArray
+
+from .utils import AccessLevel, Address
+from .action import Action, ActionResult, Exploit, PrivilegeEscalation
+
+if TYPE_CHECKING:
+    from nasimemu.nasim.scenarios.host import Host
 
 
 class HostVector:
@@ -49,41 +55,46 @@ class HostVector:
     # class properties that are the same for all hosts
     # these are set when calling vectorize method
     # the bounds on address space (used for one hot encoding of host address)
-    address_space_bounds = None
+    address_space_bounds: tuple[int, int] | None = None
     # number of OS in scenario
-    num_os = None
+    num_os: int
     # map from OS name to its index in host vector
     os_idx_map: dict[str, int] = {}
     # number of services in scenario
-    num_services = None
+    num_services: int
     # map from service name to its index in host vector
     service_idx_map: dict[str, int] = {}
     # number of processes in scenario
-    num_processes = None
+    num_processes: int
     # map from process name to its index in host vector
     process_idx_map: dict[str, int] = {}
     # size of state for host vector (i.e. len of vector)
-    state_size = None
+    state_size: int
 
     # vector position constants
     # to be initialized
     _subnet_address_idx = 0
-    _host_address_idx = None
-    _compromised_idx = None
-    _reachable_idx = None
-    _discovered_idx = None
-    _value_idx = None
-    _discovery_value_idx = None
-    _access_idx = None
-    _os_start_idx = None
-    _service_start_idx = None
-    _process_start_idx = None
+    _host_address_idx: int
+    _compromised_idx: int
+    _reachable_idx: int
+    _discovered_idx: int
+    _value_idx: int
+    _discovery_value_idx: int
+    _access_idx: int
+    _os_start_idx: int
+    _service_start_idx: int
+    _process_start_idx: int
 
-    def __init__(self, vector):
+    def __init__(self, vector: NDArray[Any]) -> None:
         self.vector = vector
 
     @classmethod
-    def vectorize(cls, host, address_space_bounds, vector=None):
+    def vectorize(
+        cls,
+        host: "Host",
+        address_space_bounds: tuple[int, int] | None,
+        vector: NDArray[Any] | None = None
+    ) -> "HostVector":
         if cls.address_space_bounds is None:
             cls._initialize(
                 address_space_bounds, host.services, host.os, host.processes
@@ -112,8 +123,13 @@ class HostVector:
         return cls(vector)
 
     @classmethod
-    def vectorize_random(cls, host, address_space_bounds, vector=None):
-        hvec = cls.vectorize(host, vector)
+    def vectorize_random(
+        cls,
+        host: "Host",
+        address_space_bounds: tuple[int, int] | None,
+        vector: NDArray[Any] | None = None
+    ) -> "HostVector":
+        hvec = cls.vectorize(host, address_space_bounds, vector)
         # random variables
         for srv_num in cls.service_idx_map.values():
             srv_val = np.random.randint(0, 2)
@@ -129,86 +145,88 @@ class HostVector:
         return hvec
 
     @property
-    def compromised(self):
-        return self.vector[self._compromised_idx]
+    def compromised(self) -> float:
+        return cast(float, self.vector[self._compromised_idx])
 
     @compromised.setter
-    def compromised(self, val):
+    def compromised(self, val: bool) -> None:
         self.vector[self._compromised_idx] = int(val)
 
     @property
-    def discovered(self):
-        return self.vector[self._discovered_idx]
+    def discovered(self) -> float:
+        return cast(float, self.vector[self._discovered_idx])
 
     @discovered.setter
-    def discovered(self, val):
+    def discovered(self, val: bool) -> None:
         self.vector[self._discovered_idx] = int(val)
 
     @property
-    def reachable(self):
-        return self.vector[self._reachable_idx]
+    def reachable(self) -> float:
+        return cast(float, self.vector[self._reachable_idx])
 
     @reachable.setter
-    def reachable(self, val):
+    def reachable(self, val: bool | float) -> None:
         self.vector[self._reachable_idx] = int(val)
 
     @property
-    def address(self):
-        return (
+    def address(self) -> Address:
+        return cast(Address, (
             self.vector[self._subnet_address_idx_slice()].argmax(),
             self.vector[self._host_address_idx_slice()].argmax()
-        )
+        ))
 
     @property
-    def value(self):
-        return self.vector[self._value_idx]
+    def value(self) -> float:
+        return cast(float, self.vector[self._value_idx])
 
     @property
-    def discovery_value(self):
-        return self.vector[self._discovery_value_idx]
+    def discovery_value(self) -> float:
+        return cast(float, self.vector[self._discovery_value_idx])
 
     @property
-    def access(self):
-        return self.vector[self._access_idx]
+    def access(self) -> float:
+        return cast(float, self.vector[self._access_idx])
 
     @access.setter
-    def access(self, val):
+    def access(self, val: float) -> None:
         self.vector[self._access_idx] = int(val)
 
     @property
-    def services(self):
+    def services(self) -> dict[str, float]:
         services = {}
         for srv, srv_num in self.service_idx_map.items():
             services[srv] = self.vector[self._get_service_idx(srv_num)]
         return services
 
     @property
-    def os(self):
+    def os(self) -> dict[str, float]:
         os = {}
         for os_key, os_num in self.os_idx_map.items():
             os[os_key] = self.vector[self._get_os_idx(os_num)]
         return os
 
     @property
-    def processes(self):
+    def processes(self) -> dict[str, float]:
         processes = {}
         for proc, proc_num in self.process_idx_map.items():
             processes[proc] = self.vector[self._get_process_idx(proc_num)]
         return processes
 
-    def is_running_service(self, srv):
+    def is_running_service(self, srv: str) -> bool:
         srv_num = self.service_idx_map[srv]
         return bool(self.vector[self._get_service_idx(srv_num)])
 
-    def is_running_os(self, os):
+    def is_running_os(self, os: str) -> bool:
         os_num = self.os_idx_map[os]
         return bool(self.vector[self._get_os_idx(os_num)])
 
-    def is_running_process(self, proc):
+    def is_running_process(self, proc: str) -> bool:
         proc_num = self.process_idx_map[proc]
         return bool(self.vector[self._get_process_idx(proc_num)])
 
-    def perform_action(self, action):
+    def perform_action(
+        self, action: Action
+    ) -> tuple["HostVector", ActionResult]:
         """Perform given action against this host
 
         Arguments
@@ -231,11 +249,11 @@ class HostVector:
         if action.is_os_scan():
             return next_state, ActionResult(True, 0, os=self.os)
 
-        if action.is_exploit():
+        if isinstance(action, Exploit):
             if self.is_running_service(action.service) and \
                (action.os is None or self.is_running_os(action.os)):
                 # service and os is present so exploit is successful
-                value = 0
+                value: float = 0
                 next_state.compromised = True
                 if not self.access == AccessLevel.ROOT:
                     # ensure a machine is not rewarded twice
@@ -264,7 +282,7 @@ class HostVector:
             )
             return next_state, result
 
-        if action.is_privilege_escalation():
+        if isinstance(action, PrivilegeEscalation):
             has_proc = (
                 action.process is None
                 or self.is_running_process(action.process)
@@ -295,16 +313,16 @@ class HostVector:
         return next_state, ActionResult(False, 0)
 
     def observe(self,
-                address=False,
-                compromised=False,
-                reachable=False,
-                discovered=False,
-                access=False,
-                value=False,
-                discovery_value=False,
-                services=False,
-                processes=False,
-                os=False):
+                address: bool = False,
+                compromised: bool = False,
+                reachable: bool = False,
+                discovered: bool = False,
+                access: bool = False,
+                value: bool = False,
+                discovery_value: bool = False,
+                services: bool = False,
+                processes: bool = False,
+                os: bool = False) -> NDArray[np.float32]:
         obs = np.zeros(self.state_size, dtype=np.float32)
         if address:
             subnet_slice = self._subnet_address_idx_slice()
@@ -335,18 +353,24 @@ class HostVector:
             obs[idxs] = self.vector[idxs]
         return obs
 
-    def readable(self):
+    def readable(self) -> dict[str, Any]:
         return self.get_readable(self.vector)
 
-    def copy(self):
+    def copy(self) -> "HostVector":
         vector_copy = np.copy(self.vector)
         return HostVector(vector_copy)
 
-    def numpy(self):
+    def numpy(self) -> NDArray[Any]:
         return self.vector
 
     @classmethod
-    def _initialize(cls, address_space_bounds, services, os_info, processes):
+    def _initialize(
+        cls,
+        address_space_bounds: tuple[int, int] | None,
+        services: dict[str, Any],
+        os_info: dict[str, Any],
+        processes: dict[str, Any]
+    ) -> None:
         cls.os_idx_map = {}
         cls.service_idx_map = {}
         cls.process_idx_map = {}
@@ -363,7 +387,8 @@ class HostVector:
             cls.process_idx_map[proc_key] = proc_num
 
     @classmethod
-    def _update_vector_idxs(cls):
+    def _update_vector_idxs(cls) -> None:
+        assert cls.address_space_bounds is not None
         cls._subnet_address_idx = 0
         cls._host_address_idx = cls.address_space_bounds[0]
         cls._compromised_idx = (
@@ -380,40 +405,40 @@ class HostVector:
         cls.state_size = cls._process_start_idx + cls.num_processes
 
     @classmethod
-    def _subnet_address_idx_slice(cls):
+    def _subnet_address_idx_slice(cls) -> slice:
         return slice(cls._subnet_address_idx, cls._host_address_idx)
 
     @classmethod
-    def _host_address_idx_slice(cls):
+    def _host_address_idx_slice(cls) -> slice:
         return slice(cls._host_address_idx, cls._compromised_idx)
 
     @classmethod
-    def _get_service_idx(cls, srv_num):
+    def _get_service_idx(cls, srv_num: int) -> int:
         return cls._service_start_idx+srv_num
 
     @classmethod
-    def _service_idx_slice(cls):
+    def _service_idx_slice(cls) -> slice:
         return slice(cls._service_start_idx, cls._process_start_idx)
 
     @classmethod
-    def _get_os_idx(cls, os_num):
+    def _get_os_idx(cls, os_num: int) -> int:
         return cls._os_start_idx+os_num
 
     @classmethod
-    def _os_idx_slice(cls):
+    def _os_idx_slice(cls) -> slice:
         return slice(cls._os_start_idx, cls._service_start_idx)
 
     @classmethod
-    def _get_process_idx(cls, proc_num):
+    def _get_process_idx(cls, proc_num: int) -> int:
         return cls._process_start_idx+proc_num
 
     @classmethod
-    def _process_idx_slice(cls):
+    def _process_idx_slice(cls) -> slice:
         return slice(cls._process_start_idx, cls.state_size)
 
     @classmethod
-    def get_readable(cls, vector):
-        readable_dict = dict()
+    def get_readable(cls, vector: NDArray[Any]) -> dict[str, Any]:
+        readable_dict: dict[str, Any] = dict()
         hvec = cls(vector)
         readable_dict["Address"] = hvec.address
         readable_dict["Compromised"] = bool(hvec.compromised)
@@ -432,7 +457,7 @@ class HostVector:
         return readable_dict
 
     @classmethod
-    def reset(cls):
+    def reset(cls) -> None:
         """Resets any class variables.
 
         This is used to avoid errors when changing scenarios within a single
@@ -440,13 +465,13 @@ class HostVector:
         """
         cls.address_space_bounds = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Host: {self.address}"
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(str(self.vector))
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if self is other:
             return True
         if not isinstance(other, HostVector):

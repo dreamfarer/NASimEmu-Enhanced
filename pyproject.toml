@@ -46,8 +46,15 @@ packages = ["src/nasimemu"]
 
 [tool.mypy]
 python_version = "3.10"
+strict = true
 files = ["src/nasimemu"]
+exclude = ["^src/nasimemu/pymetasploit3/"]
 
 [[tool.mypy.overrides]]
 module = ["gym.*", "torch.*", "matplotlib.*", "plotly.*", "prettytable.*", "msgpack.*"]
 ignore_missing_imports = true
+
+# Vendored fork of pymetasploit3, to be replaced by the PyPI package.
+[[tool.mypy.overrides]]
+module = ["nasimemu.pymetasploit3.*"]
+follow_imports = "skip"

@@ -1,29 +1,35 @@
 import math, numpy as np
 from pprint import pprint
+from collections.abc import Collection
+from typing import Any, cast
 
 import nasimemu.nasim.scenarios.utils as u
+from nasimemu.nasim.scenarios.host import Host
+
+# (subnet, host) address of a host
+Address = tuple[int, int]
 
 
 class Scenario:
 
-    def __init__(self, scenario_dict, name=None, generated=False, permute_subnets=True):
+    def __init__(self, scenario_dict: dict[str, Any], name: str | None = None, generated: bool = False, permute_subnets: bool = True) -> None:
 
         self.scenario_dict = scenario_dict
         self.name = name
         self.generated = generated
-        self._e_map = None
-        self._pe_map = None
+        self._e_map: dict[str, dict[str | None, dict[str, Any]]] | None = None
+        self._pe_map: dict[str, dict[str | None, dict[str, Any]]] | None = None
 
         if permute_subnets:
             self._permute_subnets()
 
         # this is used for consistent positioning of
         # host state and obs in state and obs matrices
-        self.host_num_map = {}
+        self.host_num_map: dict[Address, int] = {}
         for host_num, host_addr in enumerate(self.hosts):
             self.host_num_map[host_addr] = host_num
 
-    def _permute_subnets(self):
+    def _permute_subnets(self) -> None:
         # create the permutation sequence
         perm = np.concatenate([[0], np.random.permutation(np.arange(1, len(self.subnets)))])
         orig = np.arange(len(self.subnets))
@@ -44,20 +50,20 @@ class Scenario:
         self.scenario_dict[u.TOPOLOGY] = topology
 
         # permute sensitive_hosts
-        sensitive_hosts = {}
+        sensitive_hosts: dict[Address, float] = {}
         for ((subnet, host_addr), value) in self.scenario_dict[u.SENSITIVE_HOSTS].items():
             sensitive_hosts[(perm[subnet], host_addr)] = value
 
         self.scenario_dict[u.SENSITIVE_HOSTS] = sensitive_hosts
 
         # permute host_configs
-        hosts = {}
+        hosts: dict[Address, Host] = {}
         for ((subnet, host_addr), host_config) in self.scenario_dict[u.HOSTS].items():
             # alter the host's address
             host_config.address = (perm[subnet], host_addr)
 
             # alter the host firewall
-            fw_dict = {}
+            fw_dict: dict[Any, list[str]] = {}
             for ((fw_subnet, fw_host_addr), fw_config) in host_config.firewall.items():
                 fw_dict[(perm[fw_subnet], fw_host_addr)] = fw_config
             host_config.firewall = fw_dict
@@ -68,54 +74,54 @@ class Scenario:
         self.scenario_dict[u.HOSTS] = hosts
 
         # permute firewall
-        firewall = {}
+        firewall: dict[tuple[int, int], Collection[str]] = {}
         for ((fw_from, fw_to), fw_config) in self.scenario_dict[u.FIREWALL].items():
             firewall[(perm[fw_from], perm[fw_to])] = fw_config
 
         self.scenario_dict[u.FIREWALL] = firewall
 
     @property
-    def step_limit(self):
+    def step_limit(self) -> int | None:
         return self.scenario_dict.get(u.STEP_LIMIT, None)
 
     @property
-    def services(self):
-        return self.scenario_dict[u.SERVICES]
+    def services(self) -> list[str]:
+        return cast(list[str], self.scenario_dict[u.SERVICES])
 
     @property
-    def num_services(self):
+    def num_services(self) -> int:
         return len(self.services)
 
     @property
-    def os(self):
-        return self.scenario_dict[u.OS]
+    def os(self) -> list[str]:
+        return cast(list[str], self.scenario_dict[u.OS])
 
     @property
-    def num_os(self):
+    def num_os(self) -> int:
         return len(self.os)
 
     @property
-    def processes(self):
-        return self.scenario_dict[u.PROCESSES]
+    def processes(self) -> list[str]:
+        return cast(list[str], self.scenario_dict[u.PROCESSES])
 
     @property
-    def num_processes(self):
+    def num_processes(self) -> int:
         return len(self.processes)
 
     @property
-    def access_levels(self):
+    def access_levels(self) -> int:
         return u.ROOT_ACCESS
 
     @property
-    def exploits(self):
-        return self.scenario_dict[u.EXPLOITS]
+    def exploits(self) -> dict[str, dict[str, Any]]:
+        return cast(dict[str, dict[str, Any]], self.scenario_dict[u.EXPLOITS])
 
     @property
-    def privescs(self):
-        return self.scenario_dict[u.PRIVESCS]
+    def privescs(self) -> dict[str, dict[str, Any]]:
+        return cast(dict[str, dict[str, Any]], self.scenario_dict[u.PRIVESCS])
 
     @property
-    def exploit_map(self):
+    def exploit_map(self) -> dict[str, dict[str | None, dict[str, Any]]]:
         """A nested dictionary for all exploits in scenario.
 
         I.e. {service_name: {
@@ -128,7 +134,7 @@ class Scenario:
              }
         """
         if self._e_map is None:
-            e_map = {}
+            e_map: dict[str, dict[str | None, dict[str, Any]]] = {}
             for e_name, e_def in self.exploits.items():
                 srv_name = e_def[u.EXPLOIT_SERVICE]
                 if srv_name not in e_map:
@@ -149,7 +155,7 @@ class Scenario:
         return self._e_map
 
     @property
-    def privesc_map(self):
+    def privesc_map(self) -> dict[str, dict[str | None, dict[str, Any]]]:
         """A nested dictionary for all privilege escalation actions in scenario.
 
         I.e. {process_name: {
@@ -162,7 +168,7 @@ class Scenario:
              }
         """
         if self._pe_map is None:
-            pe_map = {}
+            pe_map: dict[str, dict[str | None, dict[str, Any]]] = {}
             for pe_name, pe_def in self.privescs.items():
                 proc_name = pe_def[u.PRIVESC_PROCESS]
                 if proc_name not in pe_map:
@@ -183,59 +189,59 @@ class Scenario:
         return self._pe_map
 
     @property
-    def subnets(self):
+    def subnets(self) -> Any:
         return self.scenario_dict[u.SUBNETS]
 
     @property
-    def topology(self):
+    def topology(self) -> Any:
         return self.scenario_dict[u.TOPOLOGY]
 
     @property
-    def sensitive_hosts(self):
-        return self.scenario_dict[u.SENSITIVE_HOSTS]
+    def sensitive_hosts(self) -> dict[Address, float]:
+        return cast(dict[Address, float], self.scenario_dict[u.SENSITIVE_HOSTS])
 
     @property
-    def sensitive_addresses(self):
+    def sensitive_addresses(self) -> list[Address]:
         return list(self.sensitive_hosts.keys())
 
     @property
-    def firewall(self):
-        return self.scenario_dict[u.FIREWALL]
+    def firewall(self) -> dict[tuple[int, int], Collection[str]]:
+        return cast(dict[tuple[int, int], Collection[str]], self.scenario_dict[u.FIREWALL])
 
     @property
-    def hosts(self):
-        return self.scenario_dict[u.HOSTS]
+    def hosts(self) -> dict[Address, Host]:
+        return cast(dict[Address, Host], self.scenario_dict[u.HOSTS])
 
     @property
-    def address_space(self):
+    def address_space(self) -> list[Address]:
         return list(self.hosts.keys())
 
     @property
-    def service_scan_cost(self):
-        return self.scenario_dict[u.SERVICE_SCAN_COST]
+    def service_scan_cost(self) -> float:
+        return cast(float, self.scenario_dict[u.SERVICE_SCAN_COST])
 
     @property
-    def os_scan_cost(self):
-        return self.scenario_dict[u.OS_SCAN_COST]
+    def os_scan_cost(self) -> float:
+        return cast(float, self.scenario_dict[u.OS_SCAN_COST])
 
     @property
-    def subnet_scan_cost(self):
-        return self.scenario_dict[u.SUBNET_SCAN_COST]
+    def subnet_scan_cost(self) -> float:
+        return cast(float, self.scenario_dict[u.SUBNET_SCAN_COST])
 
     @property
-    def process_scan_cost(self):
-        return self.scenario_dict[u.PROCESS_SCAN_COST]
+    def process_scan_cost(self) -> float:
+        return cast(float, self.scenario_dict[u.PROCESS_SCAN_COST])
 
     @property
-    def address_space_bounds(self):
+    def address_space_bounds(self) -> tuple[int, int]:
         if "address_space_bounds" in self.scenario_dict:
-            return self.scenario_dict["address_space_bounds"]
+            return cast(tuple[int, int], self.scenario_dict["address_space_bounds"])
 
         else:
             return len(self.subnets), max(self.subnets)
 
     @property
-    def host_value_bounds(self):
+    def host_value_bounds(self) -> tuple[float, float]:
         """The min and max values of host in scenario
 
         Returns
@@ -251,7 +257,7 @@ class Scenario:
         return (min_value, max_value)
 
     @property
-    def host_discovery_value_bounds(self):
+    def host_discovery_value_bounds(self) -> tuple[float, float]:
         """The min and max discovery values of hosts in scenario
 
         Returns
@@ -266,10 +272,10 @@ class Scenario:
             max_value = max(max_value, host.discovery_value)
         return (min_value, max_value)
 
-    def display(self):
+    def display(self) -> None:
         pprint(self.scenario_dict)
 
-    def get_action_space_size(self):
+    def get_action_space_size(self) -> int:
         num_exploits = len(self.exploits)
         num_privescs = len(self.privescs)
         # OSScan, ServiceScan, SubnetScan, ProcessScan
@@ -277,7 +283,7 @@ class Scenario:
         actions_per_host = num_exploits + num_privescs + num_scans
         return len(self.hosts) * actions_per_host
 
-    def get_state_space_size(self):
+    def get_state_space_size(self) -> int:
         # compromised, reachable, discovered
         host_aux_bin_features = 3
         num_bin_features = (
@@ -288,10 +294,10 @@ class Scenario:
         )
         # access
         num_tri_features = 1
-        host_states = 2**num_bin_features * 3**num_tri_features
+        host_states: int = 2**num_bin_features * 3**num_tri_features
         return len(self.hosts) * host_states
 
-    def get_state_dims(self):
+    def get_state_dims(self) -> tuple[int, int]:
         # compromised, reachable, discovered, value, discovery_value, access
         host_aux_features = 6
         host_state_size = (
@@ -304,11 +310,11 @@ class Scenario:
         )
         return len(self.hosts), host_state_size
 
-    def get_observation_dims(self):
+    def get_observation_dims(self) -> tuple[int, int]:
         state_dims = self.get_state_dims()
         return state_dims[0]+1, state_dims[1]
 
-    def get_description(self):
+    def get_description(self) -> dict[str, Any]:
         description = {
             "Name": self.name,
             "Type": "generated" if self.generated else "static",

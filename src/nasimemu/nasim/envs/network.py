@@ -1,7 +1,13 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 
-from .action import ActionResult
-from .utils import get_minimal_steps_to_goal, min_subnet_depth, AccessLevel
+from .action import Action, ActionResult, Exploit
+from .utils import get_minimal_steps_to_goal, min_subnet_depth, AccessLevel, Address
+
+if TYPE_CHECKING:
+    from nasimemu.nasim.scenarios.scenario import Scenario
+    from .state import State
 
 # column in topology adjacency matrix that represents connection between
 # subnet and public
@@ -11,7 +17,7 @@ INTERNET = 0
 class Network:
     """A computer network """
 
-    def __init__(self, scenario):
+    def __init__(self, scenario: "Scenario") -> None:
         self.hosts = scenario.hosts
         self.host_num_map = scenario.host_num_map
         self.subnets = scenario.subnets
@@ -22,7 +28,7 @@ class Network:
         self.sensitive_addresses = scenario.sensitive_addresses
         self.sensitive_hosts = scenario.sensitive_hosts
 
-    def reset(self, state):
+    def reset(self, state: "State") -> "State":
         """Reset the network state to initial state """
         next_state = state.copy()
         for host_addr in self.address_space:
@@ -33,7 +39,9 @@ class Network:
             host.discovered = host.reachable
         return next_state
 
-    def perform_action(self, state, action):
+    def perform_action(
+        self, state: "State", action: Action
+    ) -> tuple["State", ActionResult]:
         """Perform the given Action against the network.
 
         Arguments
@@ -69,7 +77,7 @@ class Network:
             result = ActionResult(False, 0.0, permission_error=True)
             return next_state, result
 
-        if action.is_exploit() \
+        if isinstance(action, Exploit) \
            and not self.traffic_permitted(
                     state, action.target, action.service
            ):
@@ -100,7 +108,9 @@ class Network:
         self._update(next_state, action, action_obs)
         return next_state, action_obs
 
-    def _perform_subnet_scan(self, next_state, action):
+    def _perform_subnet_scan(
+        self, next_state: "State", action: Action
+    ) -> tuple["State", ActionResult]:
         if not next_state.host_compromised(action.target):
             result = ActionResult(False, 0.0, connection_error=True)
             return next_state, result
@@ -109,9 +119,9 @@ class Network:
             result = ActionResult(False, 0.0, permission_error=True)
             return next_state, result
 
-        discovered = {}
-        newly_discovered = {}
-        discovery_reward = 0
+        discovered: dict[Address, bool] = {}
+        newly_discovered: dict[Address, bool] = {}
+        discovery_reward: float = 0
         target_subnet = action.target[0]
         for h_addr in self.address_space:
             newly_discovered[h_addr] = False
@@ -132,11 +142,15 @@ class Network:
         )
         return next_state, obs
 
-    def _update(self, state, action, action_obs):
+    def _update(
+        self, state: "State", action: Action, action_obs: ActionResult
+    ) -> None:
         if action.is_exploit() and action_obs.success:
             self._update_reachable(state, action.target)
 
-    def _update_reachable(self, state, compromised_addr):
+    def _update_reachable(
+        self, state: "State", compromised_addr: Address
+    ) -> None:
         """Updates the reachable status of hosts on network, based on current
         state and newly exploited host
         """
@@ -147,16 +161,18 @@ class Network:
             if self.subnets_connected(comp_subnet, addr[0]):
                 state.set_host_reachable(addr)
 
-    def get_sensitive_hosts(self):
+    def get_sensitive_hosts(self) -> list[Address]:
         return self.sensitive_addresses
 
-    def is_sensitive_host(self, host_address):
+    def is_sensitive_host(self, host_address: Address) -> bool:
         return host_address in self.sensitive_addresses
 
-    def subnets_connected(self, subnet_1, subnet_2):
-        return self.topology[subnet_1][subnet_2] == 1
+    def subnets_connected(self, subnet_1: int, subnet_2: int) -> bool:
+        return bool(self.topology[subnet_1][subnet_2] == 1)
 
-    def subnet_traffic_permitted(self, src_subnet, dest_subnet, service):
+    def subnet_traffic_permitted(
+        self, src_subnet: int, dest_subnet: int, service: str
+    ) -> bool:
         if src_subnet == dest_subnet:
             # in same subnet so permitted
             return True
@@ -164,11 +180,15 @@ class Network:
             return False
         return service in self.firewall[(src_subnet, dest_subnet)]
 
-    def host_traffic_permitted(self, src_addr, dest_addr, service):
+    def host_traffic_permitted(
+        self, src_addr: Address, dest_addr: Address, service: str
+    ) -> bool:
         dest_host = self.hosts[dest_addr]
         return dest_host.traffic_permitted(src_addr, service)
 
-    def has_required_remote_permission(self, state, action):
+    def has_required_remote_permission(
+        self, state: "State", action: Action
+    ) -> bool:
         """Checks attacker has necessary permissions for remote action """
         if self.subnet_public(action.target[0]):
             return True
@@ -179,7 +199,7 @@ class Network:
             if action.is_scan() and \
                not self.subnets_connected(src_addr[0], action.target[0]):
                 continue
-            if action.is_exploit() and \
+            if isinstance(action, Exploit) and \
                not self.subnet_traffic_permitted(
                    src_addr[0], action.target[0], action.service
                ):
@@ -188,7 +208,9 @@ class Network:
                 return True
         return False
 
-    def traffic_permitted(self, state, host_addr, service):
+    def traffic_permitted(
+        self, state: "State", host_addr: Address, service: str
+    ) -> bool:
         """Checks whether the subnet and host firewalls permits traffic to a
         given host and service, based on current set of compromised hosts on
         network.
@@ -205,39 +227,39 @@ class Network:
                 return True
         return False
 
-    def subnet_public(self, subnet):
-        return self.topology[subnet][INTERNET] == 1
+    def subnet_public(self, subnet: int) -> bool:
+        return bool(self.topology[subnet][INTERNET] == 1)
 
-    def get_number_of_subnets(self):
+    def get_number_of_subnets(self) -> int:
         return len(self.subnets)
 
-    def all_sensitive_hosts_compromised(self, state):
+    def all_sensitive_hosts_compromised(self, state: "State") -> bool:
         for host_addr in self.sensitive_addresses:
             if not state.host_has_access(host_addr, AccessLevel.ROOT):
                 return False
         return True
 
-    def get_total_sensitive_host_value(self):
-        total = 0
+    def get_total_sensitive_host_value(self) -> float:
+        total: float = 0
         for host_value in self.sensitive_hosts.values():
             total += host_value
         return total
 
-    def get_total_discovery_value(self):
-        total = 0
-        for host in self.hosts:
+    def get_total_discovery_value(self) -> float:
+        total: float = 0
+        for host in self.hosts.values():
             total += host.discovery_value
         return total
 
-    def get_minimal_steps(self):
+    def get_minimal_steps(self) -> int:
         return get_minimal_steps_to_goal(
             self.topology, self.sensitive_addresses
         )
 
-    def get_subnet_depths(self):
+    def get_subnet_depths(self) -> list[float]:
         return min_subnet_depth(self.topology)
 
-    def __str__(self):
+    def __str__(self) -> str:
         output = "\n--- Network ---\n"
         output += "Subnets: " + str(self.subnets) + "\n"
         output += "Topology:\n"

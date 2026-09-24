@@ -1,4 +1,6 @@
 import os
+from typing import Any
+
 import yaml
 import os.path as osp
 
@@ -56,7 +58,7 @@ HOST_FIREWALL = "firewall"
 HOST_VALUE = "value"
 
 
-def load_yaml(file_path):
+def load_yaml(file_path: str) -> Any:
     """Load yaml file located at file path.
 
     Parameters
@@ -78,7 +80,7 @@ def load_yaml(file_path):
     return content
 
 
-def get_file_name(file_path):
+def get_file_name(file_path: str) -> str:
     """Extracts the file or dir name from file path
 
     Parameters

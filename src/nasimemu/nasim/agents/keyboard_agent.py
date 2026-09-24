@@ -11,33 +11,45 @@ To see available running arguments:
 
 $ python keyboard_agent.py--help
 """
+from typing import Any, TypeVar
+
+from numpy.typing import NDArray
+
 from nasimemu import nasim
-from nasimemu.nasim.envs.action import Exploit, PrivilegeEscalation
+from nasimemu.nasim.envs.action import (
+    Action, Exploit, FlatActionSpace, ParameterisedActionSpace,
+    PrivilegeEscalation
+)
+from nasimemu.nasim.envs.environment import NASimEnv
+from nasimemu.nasim.envs.observation import Observation
 
 
 LINE_BREAK = "-"*60
 LINE_BREAK2 = "="*60
 
+T = TypeVar("T")
 
-def print_actions(action_space):
+
+def print_actions(action_space: FlatActionSpace) -> None:
     for a in range(action_space.n):
         print(f"{a} {action_space.get_action(a)}")
     print(LINE_BREAK)
 
 
-def choose_flat_action(env):
+def choose_flat_action(env: NASimEnv) -> Action:
+    assert isinstance(env.action_space, FlatActionSpace)
     print_actions(env.action_space)
     while True:
         try:
             idx = int(input("Choose action number: "))
-            action = env.action_space.get_action(idx)
+            action: Action = env.action_space.get_action(idx)
             print(f"Performing: {action}")
             return action
         except Exception:
             print("Invalid choice. Try again.")
 
 
-def display_actions(actions):
+def display_actions(actions: dict[str, dict[str, Any]]) -> None:
     action_names = list(actions)
     for i, name in enumerate(action_names):
         a_def = actions[name]
@@ -46,7 +58,7 @@ def display_actions(actions):
         print(" ".join(output))
 
 
-def choose_item(items):
+def choose_item(items: list[T]) -> T:
     while True:
         try:
             idx = int(input("Choose number: "))
@@ -55,7 +67,8 @@ def choose_item(items):
             print("Invalid choice. Try again.")
 
 
-def choose_param_action(env):
+def choose_param_action(env: NASimEnv) -> Action:
+    assert isinstance(env.action_space, ParameterisedActionSpace)
     print("1. Choose Action Type:")
     print("----------------------")
     for i, atype in enumerate(env.action_space.action_types):
@@ -98,7 +111,7 @@ def choose_param_action(env):
     # subnet-1, since action_space handles exclusion of internet subnet
     avec = [atype_idx, subnet-1, host, 0, 0]
     if atype not in (Exploit, PrivilegeEscalation):
-        action = env.action_space.get_action(avec)
+        action: Action = env.action_space.get_action(avec)
         print("----------------")
         print(f"ACTION SELECTED: {action}")
         return action
@@ -128,7 +141,7 @@ def choose_param_action(env):
     return action
 
 
-def choose_action(env):
+def choose_action(env: NASimEnv) -> Action:
     input("Press enter to choose next action..")
     print("\n" + LINE_BREAK2)
     print("CHOOSE ACTION")
@@ -138,7 +151,8 @@ def choose_action(env):
     return choose_param_action(env)
 
 
-def run_keyboard_agent(env, render_mode="readable"):
+def run_keyboard_agent(env: NASimEnv,
+                       render_mode: str = "readable") -> tuple[float, int, bool]:
     """Run Keyboard agent
 
     Parameters
@@ -163,7 +177,7 @@ def run_keyboard_agent(env, render_mode="readable"):
 
     o = env.reset()
     env.render(render_mode)
-    total_reward = 0
+    total_reward = 0.0
     total_steps = 0
     done = False
     while not done:
@@ -185,7 +199,9 @@ def run_keyboard_agent(env, render_mode="readable"):
     return total_reward, total_steps, done
 
 
-def run_generative_keyboard_agent(env, render_mode="readable"):
+def run_generative_keyboard_agent(
+        env: NASimEnv,
+        render_mode: str = "readable") -> tuple[float, int, bool]:
     """Run Keyboard agent in generative mode.
 
     The experience is the same as the normal mode, this is mainly useful
@@ -211,12 +227,12 @@ def run_generative_keyboard_agent(env, render_mode="readable"):
     print("STARTING EPISODE")
     print(LINE_BREAK2)
 
-    o = env.reset()
+    o: Observation | NDArray[Any] = env.reset()
     s = env.current_state
     env.render_state(render_mode, s)
     env.render(render_mode, o)
 
-    total_reward = 0
+    total_reward = 0.0
     total_steps = 0
     done = False
     while not done:

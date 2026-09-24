@@ -29,9 +29,9 @@ from nasimemu.nasim.scenarios import make_benchmark_scenario
 from nasimemu.nasim.scenarios.benchmark import AVAIL_BENCHMARKS
 
 
-def describe_scenarios(output=None):
-    rows = []
-    headers = None
+def describe_scenarios(output: str | None = None) -> None:
+    rows: list[list[str]] = []
+    headers: list[str] | None = None
     for name in AVAIL_BENCHMARKS:
         scenario = make_benchmark_scenario(name, seed=0)
         des = scenario.get_description()
@@ -43,6 +43,7 @@ def describe_scenarios(output=None):
 
         rows.append([str(des[h]) for h in headers])
 
+    assert headers is not None
     table = prettytable.PrettyTable(headers)
     for row in rows:
         table.add_row(row)

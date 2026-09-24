@@ -1,23 +1,26 @@
 """A script for training a DQN agent and storing best policy """
 
+from typing import Any
+
 from nasimemu import nasim
 from nasimemu.nasim.agents.dqn_agent import DQNAgent
+from nasimemu.nasim.envs.environment import NASimEnv
 
 
 class BestDQN(DQNAgent):
     """A DQN Agent which saves best policy found during training """
 
     def __init__(self,
-                 env,
-                 save_path,
-                 eval_epsilon=0.01,
-                 **kwargs):
+                 env: NASimEnv,
+                 save_path: str,
+                 eval_epsilon: float = 0.01,
+                 **kwargs: Any) -> None:
         super().__init__(env, **kwargs)
         self.save_path = save_path
         self.eval_epsilon = eval_epsilon
         self.best_score = -float("inf")
 
-    def run_train_episode(self, step_limit):
+    def run_train_episode(self, step_limit: int) -> tuple[float, int, bool]:
         ep_ret, steps, goal_reached = super().run_train_episode(step_limit)
 
         if self.steps_done > self.exploration_steps:

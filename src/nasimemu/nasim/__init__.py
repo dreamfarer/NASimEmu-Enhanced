@@ -1,7 +1,9 @@
+from typing import Any
+
 import gym
 from gym.envs.registration import register
 
-from nasimemu.nasim.envs import NASimEnv
+from nasimemu.nasim.envs.environment import NASimEnv
 from nasimemu.nasim.scenarios.benchmark import AVAIL_BENCHMARKS
 from nasimemu.nasim.scenarios import \
     make_benchmark_scenario, load_scenario, generate_scenario
@@ -9,11 +11,11 @@ from nasimemu.nasim.scenarios import \
 
 __all__ = ['make_benchmark', 'load', 'generate']
 
-def make_benchmark(scenario_name,
-                   seed=None,
-                   fully_obs=False,
-                   flat_actions=True,
-                   flat_obs=True):
+def make_benchmark(scenario_name: str,
+                   seed: int | None = None,
+                   fully_obs: bool = False,
+                   flat_actions: bool = True,
+                   flat_obs: bool = True) -> NASimEnv:
     """Make a new benchmark NASim environment.
 
     Parameters
@@ -49,11 +51,11 @@ def make_benchmark(scenario_name,
     return NASimEnv(scenario, **env_kwargs)
 
 
-def load(path,
-         fully_obs=False,
-         flat_actions=True,
-         flat_obs=True,
-         name=None):
+def load(path: str,
+         fully_obs: bool = False,
+         flat_actions: bool = True,
+         flat_obs: bool = True,
+         name: str | None = None) -> NASimEnv:
     """Load NASim Environment from a .yaml scenario file.
 
     Parameters
@@ -85,12 +87,12 @@ def load(path,
     return NASimEnv(scenario, **env_kwargs)
 
 
-def generate(num_hosts,
-             num_services,
-             fully_obs=False,
-             flat_actions=True,
-             flat_obs=True,
-             **params):
+def generate(num_hosts: int,
+             num_services: int,
+             fully_obs: bool = False,
+             flat_actions: bool = True,
+             flat_obs: bool = True,
+             **params: Any) -> NASimEnv:
     """Construct Environment from an auto generated network.
 
     Parameters
@@ -124,7 +126,8 @@ def generate(num_hosts,
 
 
 # Register NASimEnv with OpenAI gym
-def _register(id, entry_point, kwargs, nondeterministic, force=True):
+def _register(id: str, entry_point: str, kwargs: dict[str, Any],
+              nondeterministic: bool, force: bool = True) -> None:
     """Registers NASim Open AI Gym Environment.
 
     Handles issues with re-registering gym environments.

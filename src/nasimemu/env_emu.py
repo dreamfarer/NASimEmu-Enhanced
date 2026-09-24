@@ -1,18 +1,20 @@
 # This is a high-level wrapper around NASimEnv that translates nasim actions into actions in msf_interface and the module result into nasim result.
 
-from nasimemu.nasim.envs import NASimEnv
+from typing import Any
+from nasimemu.nasim.envs.environment import NASimEnv
 from nasimemu.nasim.envs.host_vector import HostVector
 from nasimemu.nasim.scenarios.host import Host
 
 import logging, random
 import numpy as np, time, ipaddress
+from numpy.typing import NDArray
 
 from nasimemu.msf_interface import MsfClient
 
 WHOLE_NETWORK = '192.168.1-5.100-110'
 
 class EmulatedNetwork():
-    def __init__(self, host_dim, scenario):
+    def __init__(self, host_dim: int, scenario: Any) -> None:
         self.msfclient = MsfClient('msfpassword', '192.168.0.100')
         self.host_dim = host_dim
         self.scenario = scenario
@@ -22,18 +24,18 @@ class EmulatedNetwork():
         # for session in self.msfclient.get_sessions():
                 # session.stop()
 
-        self.observed_hosts = set()
+        self.observed_hosts: set[str] = set()
 
     @staticmethod
-    def _ip_to_target(host):
+    def _ip_to_target(host: str) -> tuple[int, int]:
         _, _, t_subnet, t_id = host.split('.')
         return int(t_subnet), int(t_id)-100
 
     @staticmethod
-    def _target_to_ip(target):
+    def _target_to_ip(target: tuple[int, int]) -> str:
         return f'192.168.{target[0]}.{100+target[1]}'
 
-    def _is_session_root(self, session_id, os):
+    def _is_session_root(self, session_id: Any, os: str) -> bool:
         if os == 'windows':
             groups = self.msfclient.run_shell_command(session_id, 'whoami /groups', os)
             return "BUILTIN\\Administrators" in groups
@@ -41,7 +43,7 @@ class EmulatedNetwork():
             username = self.msfclient.run_shell_command(session_id, 'whoami', os)
             return 'root' in username
 
-    def _contains_loot(self, session_id, os):
+    def _contains_loot(self, session_id: Any, os: str) -> bool:
         if os == 'linux':
             loot_file = '/home/kylo_ren/loot'
             res = self.msfclient.run_shell_command(session_id, f'test -f {loot_file}; echo NO_LOOT=$?')
@@ -53,7 +55,7 @@ class EmulatedNetwork():
         else:
             raise Exception('Unknown OS')
 
-    def _recover_loot(self, session_id, os):
+    def _recover_loot(self, session_id: Any, os: str) -> str | None:
         if os == 'linux':
             loot_file = '/home/kylo_ren/loot'
             res = self.msfclient.run_shell_command(session_id, f'cat {loot_file}')
@@ -73,12 +75,12 @@ class EmulatedNetwork():
         else:
             raise Exception('Unknown OS')
 
-    def _get_action_result(self):
+    def _get_action_result(self) -> NDArray[Any]:
         a_res =  np.zeros(self.host_dim)        # TODO: auxiliary action result - see observation.py from_action_result()
         return a_res
 
 
-    def initial_scan(self):
+    def initial_scan(self) -> NDArray[Any]:
         result = self.msfclient.scan_portscan(WHOLE_NETWORK, ports='22')
         hosts = set([x.split(':')[0] for x in result])
 
@@ -89,7 +91,7 @@ class EmulatedNetwork():
         # targets = [x for x in targets if x[0] != 0]   # filter internet
 
         # create hosts & vectorize
-        host_vecs = []
+        host_vecs: list[Any] = []
         for target in targets:
             host = Host(target, os=dict(), services=dict(), processes=dict(), firewall=None, value=0., discovery_value=0.,
                             compromised=False, reachable=True, discovered=True, access=0)
@@ -97,17 +99,16 @@ class EmulatedNetwork():
             host_vecs.append(host_vec)
 
         host_vecs.append( self._get_action_result() )   # TODO: auxiliary action result - see observation.py from_action_result()
-        host_vecs = np.vstack(host_vecs)
 
-        return host_vecs
+        return np.vstack(host_vecs)
 
-    def _get_meterpreter(self, ip):
+    def _get_meterpreter(self, ip: str) -> Any:
         sessions = self.msfclient.get_sessions_filtered(ip=ip, session_type='meterpreter')
 
         if len(sessions) == 0:  # upgrade one of the sessions to meterpreter
             sessions = self.msfclient.get_sessions_filtered(ip=ip)
             session_shell = int(random.choice(list(sessions)))
-            session_meterpreter = self.msfclient.post_shell_to_meterpreter(session_shell)
+            session_meterpreter: Any = self.msfclient.post_shell_to_meterpreter(session_shell)
 
             if session_meterpreter is None:
                 self.logger.warning(f'Upgrading a shell {session_shell} ({ip}) to meterpreter failed!')
@@ -117,7 +118,7 @@ class EmulatedNetwork():
 
         return session_meterpreter
 
-    def _update_routes(self, source_ip, target_ips):
+    def _update_routes(self, source_ip: str, target_ips: Any) -> None:
         self.logger.info(f'Found new hosts {target_ips}, creating a route from {source_ip}.')
         session_meterpreter = self._get_meterpreter(source_ip)
 
@@ -132,15 +133,14 @@ class EmulatedNetwork():
 
         self.msfclient.run_msf_command(f'route')
 
-    def subnet_scan(self, a):
+    def subnet_scan(self, a: Any) -> tuple[NDArray[Any], dict[str, Any]]:
         target_ip = self._target_to_ip(a.target)
         sessions = self.msfclient.get_sessions_filtered(ip=target_ip)
-        info = {'success': False}
+        info: dict[str, Any] = {'success': False}
 
         if len(sessions) == 0:
             self.logger.warning(f'No available session for action {a}')
-            host_vecs = np.array([[np.zeros(self.host_dim)]])
-            return host_vecs, info
+            return np.array([[np.zeros(self.host_dim)]]), info
 
         session_id = int(random.choice(list(sessions)))
         hosts = self.msfclient.scan_ping_sweep(WHOLE_NETWORK, session_id)
@@ -154,7 +154,7 @@ class EmulatedNetwork():
         targets = [self._ip_to_target(x) for x in hosts]
 
         # create hosts & vectorize
-        host_vecs = []
+        host_vecs: list[Any] = []
         for target in targets:
             host = Host(target, os=dict(), services=dict(), processes=dict(), firewall=None, value=0., discovery_value=0.,
                             compromised=False, reachable=True, discovered=True, access=0)
@@ -162,10 +162,9 @@ class EmulatedNetwork():
             host_vecs.append(host_vec)
 
         host_vecs.append( self._get_action_result() )                   # TODO: auxiliary action result - see observation.py from_action_result()
-        host_vecs = np.vstack(host_vecs)
 
         info['success'] = True
-        return host_vecs, info
+        return np.vstack(host_vecs), info
 
     # TODO: not done
     # def _check_services_locally(self, session_id, os):
@@ -203,7 +202,7 @@ class EmulatedNetwork():
     #         return []
 
 
-    def _post_exploitation(self, session_id, os, host_address):
+    def _post_exploitation(self, session_id: Any, os: str, host_address: tuple[int, int]) -> NDArray[Any]:
         # if os is None:  # some actions may have blank os, so try to detect it here (should not happen in the standard scenarios)
         #     os = self.msfclient.get_os_by_cmd(session_id)
 
@@ -240,9 +239,9 @@ class EmulatedNetwork():
 
         return host_vec
 
-    def exploit(self, a):
+    def exploit(self, a: Any) -> tuple[NDArray[Any], dict[str, Any]]:
         rhost = self._target_to_ip(a.target)
-        info = {'success': False}
+        info: dict[str, Any] = {'success': False}
 
         if a.name == 'e_drupal':
             session_id = self.msfclient.exploit_drupal_coder_exec(rhost)
@@ -268,10 +267,10 @@ class EmulatedNetwork():
             info['success'] = True
             return host_vecs, info
 
-    def privesc(self, a):
+    def privesc(self, a: Any) -> tuple[NDArray[Any], dict[str, Any]]:
         rhost = self._target_to_ip(a.target)
         sessions = self.msfclient.get_sessions_filtered(ip=rhost)
-        info = {'success': False}
+        info: dict[str, Any] = {'success': False}
 
         if len(sessions) == 0:
             self.logger.warning(f'No available session for action {a}')
@@ -298,8 +297,8 @@ class EmulatedNetwork():
 
             return host_vecs, info
 
-    def os_scan(self, a):
-        info = {'success': False}
+    def os_scan(self, a: Any) -> tuple[NDArray[Any], dict[str, Any]]:
+        info: dict[str, Any] = {'success': False}
 
         rhost = self._target_to_ip(a.target)
         os = self.msfclient.scan_os_smb(rhost)
@@ -322,8 +321,8 @@ class EmulatedNetwork():
         host_vecs = np.vstack([host_vec, self._get_action_result()])
         return host_vecs, info
 
-    def service_scan(self, a):
-        info = {'success': False}
+    def service_scan(self, a: Any) -> tuple[NDArray[Any], dict[str, Any]]:
+        info: dict[str, Any] = {'success': False}
 
         rhost = self._target_to_ip(a.target)
         res = self.msfclient.scan_portscan(rhost, '21,80,3306,9200')
@@ -359,8 +358,8 @@ class EmulatedNetwork():
         info['success'] = True
         return host_vecs, info
 
-    def process_scan(self, a):      # TODO, currently - no processes
-        info = {'success': False}
+    def process_scan(self, a: Any) -> tuple[NDArray[Any], dict[str, Any]]:      # TODO, currently - no processes
+        info: dict[str, Any] = {'success': False}
 
         host = Host(a.target, os=dict(), services=dict(), processes=dict(), firewall=None, value=0, discovery_value=0.,
                         compromised=False, reachable=False, discovered=False, access=0)
@@ -370,7 +369,7 @@ class EmulatedNetwork():
         info['success'] = True
         return host_vecs, info
 
-    def translate_action(self, a):
+    def translate_action(self, a: Any) -> tuple[NDArray[Any], dict[str, Any]]:
         if a.is_exploit():
             return self.exploit(a)
 
@@ -392,20 +391,21 @@ class EmulatedNetwork():
         raise NotImplementedError(a)
 
 class EmulatedNASimEnv(NASimEnv):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
+        assert self.current_state is not None
         self.emulated_network = EmulatedNetwork(self.current_state.tensor.shape[1], self.scenario)
         self.logger = logging.getLogger("EmulatedNASimEnv")
 
-    def reset(self):
+    def reset(self) -> NDArray[Any]:
         super().reset()
 
         self.logger.info("reset()")
         s = self.emulated_network.initial_scan()
         return s
 
-    def step(self, a):
+    def step(self, a: Any) -> tuple[NDArray[Any], float, bool, dict[str, Any]]:
         time.sleep(2)
 
         self.logger.info(f"step() with {a}")
@@ -418,11 +418,13 @@ if __name__ == '__main__':
     # ------------------
 
     from nasimemu import nasim
+    from nasimemu.nasim.scenarios import load_scenario
+    from nasimemu.nasim.envs.action import ServiceScan
 
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger('urllib3').setLevel(logging.INFO)
 
-    scenario = nasim.load_scenario("scenarios/test_scenario.yaml")
+    scenario = load_scenario("scenarios/test_scenario.yaml")
     env = EmulatedNASimEnv(scenario=scenario)
 
     # a = nasim.envs.action.SubnetScan(target=(1,0), cost=1.0)
@@ -430,7 +432,7 @@ if __name__ == '__main__':
     # a = nasim.envs.action.Exploit(name='e_proftpd', service='proftpd', target=(1,0), cost=1.0)
     # a = nasim.envs.action.Exploit(name='e_drupal', service='drupal', target=(1,0), cost=1.0)
     # a = nasim.envs.action.PrivilegeEscalation(name='pe_kernel', process=None, access=1, target=(1,0), cost=1.0)
-    a = nasim.envs.action.ServiceScan(target=(1,0), cost=1.0)
+    a = ServiceScan(target=(1,0), cost=1.0)
 
     s, r, d, i = env.step(a)
     print(s, r, d, i)

@@ -1,7 +1,15 @@
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
+from numpy.typing import NDArray
 
 from .utils import AccessLevel
+from .action import ActionResult
 from .host_vector import HostVector
+
+if TYPE_CHECKING:
+    from nasimemu.nasim.scenarios.scenario import Scenario
+    from .state import State
 
 
 class Observation:
@@ -48,7 +56,7 @@ class Observation:
     _perm_error_idx = _conn_error_idx + 1
     _undef_error_idx = _perm_error_idx + 1
 
-    def __init__(self, state_shape):
+    def __init__(self, state_shape: tuple[int, ...]) -> None:
         """
         Parameters
         ----------
@@ -57,10 +65,10 @@ class Observation:
         """
         self.obs_shape = (state_shape[0]+1, state_shape[1])
         self.aux_row = -1
-        self.tensor = np.zeros(self.obs_shape, dtype=np.float32)
+        self.tensor: NDArray[Any] = np.zeros(self.obs_shape, dtype=np.float32)
 
     @staticmethod
-    def get_space_bounds(scenario):
+    def get_space_bounds(scenario: "Scenario") -> tuple[float, float]:
         value_bounds = scenario.host_value_bounds
         discovery_bounds = scenario.host_discovery_value_bounds
         obs_low = min(
@@ -79,17 +87,19 @@ class Observation:
         return (obs_low, obs_high)
 
     @classmethod
-    def from_numpy(cls, o_array, state_shape):
+    def from_numpy(
+        cls, o_array: NDArray[Any], state_shape: tuple[int, ...]
+    ) -> "Observation":
         obs = cls(state_shape)
         # if o_array.shape != (state_shape[0]+1, state_shape[1]):
             # o_array = o_array.reshape(state_shape[0]+1, state_shape[1])
         obs.tensor = o_array
         return obs
 
-    def from_state(self, state):
+    def from_state(self, state: "State") -> None:
         self.tensor[:self.aux_row] = state.tensor
 
-    def from_action_result(self, action_result):
+    def from_action_result(self, action_result: ActionResult) -> None:
         success = int(action_result.success)
         self.tensor[self.aux_row][self._success_idx] = success
         con_err = int(action_result.connection_error)
@@ -99,15 +109,19 @@ class Observation:
         undef_err = int(action_result.undefined_error)
         self.tensor[self.aux_row][self._undef_error_idx] = undef_err
 
-    def from_state_and_action(self, state, action_result):
+    def from_state_and_action(
+        self, state: "State", action_result: ActionResult
+    ) -> None:
         self.from_state(state)
         self.from_action_result(action_result)
 
-    def update_from_host(self, host_idx, host_obs_vector):
+    def update_from_host(
+        self, host_idx: int, host_obs_vector: NDArray[Any]
+    ) -> None:
         self.tensor[host_idx][:] = host_obs_vector
 
     @property
-    def success(self):
+    def success(self) -> bool:
         """Whether the action succeded or not
 
         Returns
@@ -118,7 +132,7 @@ class Observation:
         return bool(self.tensor[self.aux_row][self._success_idx])
 
     @property
-    def connection_error(self):
+    def connection_error(self) -> bool:
         """Whether there was a connection error or not
 
         Returns
@@ -129,7 +143,7 @@ class Observation:
         return bool(self.tensor[self.aux_row][self._conn_error_idx])
 
     @property
-    def permission_error(self):
+    def permission_error(self) -> bool:
         """Whether there was a permission error or not
 
         Returns
@@ -140,7 +154,7 @@ class Observation:
         return bool(self.tensor[self.aux_row][self._perm_error_idx])
 
     @property
-    def undefined_error(self):
+    def undefined_error(self) -> bool:
         """Whether there was an undefined error or not
 
         Returns
@@ -150,7 +164,7 @@ class Observation:
         """
         return bool(self.tensor[self.aux_row][self._undef_error_idx])
 
-    def shape_flat(self):
+    def shape_flat(self) -> tuple[int, ...]:
         """Get the flat (1D) shape of the Observation.
 
         Returns
@@ -160,7 +174,7 @@ class Observation:
         """
         return self.numpy_flat().shape
 
-    def shape(self):
+    def shape(self) -> tuple[int, int]:
         """Get the (2D) shape of the observation
 
         Returns
@@ -170,7 +184,7 @@ class Observation:
         """
         return self.obs_shape
 
-    def numpy_flat(self):
+    def numpy_flat(self) -> NDArray[Any]:
         """Get the flattened observation tensor
 
         Returns
@@ -180,7 +194,7 @@ class Observation:
         """
         return self.tensor.flatten()
 
-    def numpy(self):
+    def numpy(self) -> NDArray[Any]:
         """Get the observation tensor
 
         Returns
@@ -190,7 +204,9 @@ class Observation:
         """
         return self.tensor
 
-    def get_readable(self):
+    def get_readable(
+        self
+    ) -> tuple[list[dict[str, Any]], dict[str, bool]]:
         """Get a human readable version of the observation
 
         Returns
@@ -214,11 +230,11 @@ class Observation:
         }
         return host_obs, aux_obs
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.tensor)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return np.array_equal(self.tensor, other.tensor)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(str(self.tensor))

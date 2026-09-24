@@ -28,10 +28,14 @@ for building your own agents and for simple experimental comparisons.
 """
 import random
 from pprint import pprint
+from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 from nasimemu import nasim
+from nasimemu.nasim.envs.action import FlatActionSpace
+from nasimemu.nasim.envs.environment import NASimEnv
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -46,7 +50,7 @@ except ImportError as e:
 class ReplayMemory:
     """Experience Replay for Tabular Q-Learning agent """
 
-    def __init__(self, capacity, s_dims):
+    def __init__(self, capacity: int, s_dims: tuple[int, ...]) -> None:
         self.capacity = capacity
         self.s_buf = np.zeros((capacity, *s_dims), dtype=np.float32)
         self.a_buf = np.zeros((capacity, 1), dtype=np.int32)
@@ -55,7 +59,12 @@ class ReplayMemory:
         self.done_buf = np.zeros(capacity, dtype=np.float32)
         self.ptr, self.size = 0, 0
 
-    def store(self, s, a, next_s, r, done):
+    def store(self,
+              s: NDArray[Any],
+              a: int,
+              next_s: NDArray[Any],
+              r: float,
+              done: bool) -> None:
         self.s_buf[self.ptr] = s
         self.a_buf[self.ptr] = a
         self.next_s_buf[self.ptr] = next_s
@@ -64,7 +73,7 @@ class ReplayMemory:
         self.ptr = (self.ptr + 1) % self.capacity
         self.size = min(self.size+1, self.capacity)
 
-    def sample_batch(self, batch_size):
+    def sample_batch(self, batch_size: int) -> list[NDArray[Any]]:
         sample_idxs = np.random.choice(self.size, batch_size)
         batch = [self.s_buf[sample_idxs],
                  self.a_buf[sample_idxs],
@@ -77,32 +86,35 @@ class ReplayMemory:
 class TabularQFunction:
     """Tabular Q-Function """
 
-    def __init__(self, num_actions):
-        self.q_func = dict()
+    def __init__(self, num_actions: int) -> None:
+        self.q_func: dict[str, NDArray[np.float32]] = dict()
         self.num_actions = num_actions
 
-    def __call__(self, x):
+    def __call__(self, x: NDArray[Any] | str) -> NDArray[np.float32]:
         return self.forward(x)
 
-    def forward(self, x):
+    def forward(self, x: NDArray[Any] | str) -> NDArray[np.float32]:
         if isinstance(x, np.ndarray):
-            x = str(x.astype(np.int))
+            x = str(x.astype(int))
         if x not in self.q_func:
             self.q_func[x] = np.zeros(self.num_actions, dtype=np.float32)
         return self.q_func[x]
 
-    def forward_batch(self, x_batch):
+    def forward_batch(self, x_batch: NDArray[Any]) -> NDArray[np.float32]:
         return np.asarray([self.forward(x) for x in x_batch])
 
-    def update(self, s_batch, a_batch, delta_batch):
+    def update(self,
+               s_batch: NDArray[Any],
+               a_batch: NDArray[Any],
+               delta_batch: NDArray[Any]) -> None:
         for s, a, delta in zip(s_batch, a_batch, delta_batch):
             q_vals = self.forward(s)
             q_vals[a] += delta
 
-    def get_action(self, x):
+    def get_action(self, x: NDArray[Any] | str) -> int:
         return int(self.forward(x).argmax())
 
-    def display(self):
+    def display(self) -> None:
         pprint(self.q_func)
 
 
@@ -110,17 +122,17 @@ class TabularQLearningAgent:
     """A Tabular. epsilon greedy Q-Learning Agent using Experience Replay """
 
     def __init__(self,
-                 env,
-                 seed=None,
-                 lr=0.001,
-                 training_steps=10000,
-                 batch_size=32,
-                 replay_size=10000,
-                 final_epsilon=0.05,
-                 exploration_steps=10000,
-                 gamma=0.99,
-                 verbose=True,
-                 **kwargs):
+                 env: NASimEnv,
+                 seed: int | None = None,
+                 lr: float = 0.001,
+                 training_steps: int = 10000,
+                 batch_size: int = 32,
+                 replay_size: int = 10000,
+                 final_epsilon: float = 0.05,
+                 exploration_steps: int = 10000,
+                 gamma: float = 0.99,
+                 verbose: bool = True,
+                 **kwargs: Any) -> None:
 
         # This implementation only works for flat actions
         assert env.flat_actions
@@ -137,8 +149,9 @@ class TabularQLearningAgent:
         # envirnment setup
         self.env = env
 
-        self.num_actions = self.env.action_space.n
-        self.obs_dim = self.env.observation_space.shape
+        self.num_actions: int = self.env.action_space.n
+        assert self.env.observation_space is not None
+        self.obs_dim: tuple[int, ...] = self.env.observation_space.shape
 
         # logger setup
         self.logger = SummaryWriter()
@@ -161,17 +174,17 @@ class TabularQLearningAgent:
         # replay setup
         self.replay = ReplayMemory(replay_size, self.obs_dim)
 
-    def get_epsilon(self):
+    def get_epsilon(self) -> float:
         if self.steps_done < self.exploration_steps:
-            return self.epsilon_schedule[self.steps_done]
+            return float(self.epsilon_schedule[self.steps_done])
         return self.final_epsilon
 
-    def get_egreedy_action(self, o, epsilon):
+    def get_egreedy_action(self, o: NDArray[Any], epsilon: float) -> int:
         if random.random() > epsilon:
             return self.qfunc.get_action(o)
         return random.randint(0, self.num_actions-1)
 
-    def optimize(self):
+    def optimize(self) -> tuple[float, float]:
         batch = self.replay.sample_batch(self.batch_size)
         s_batch, a_batch, next_s_batch, r_batch, d_batch = batch
 
@@ -196,7 +209,7 @@ class TabularQLearningAgent:
         mean_td_error = np.absolute(td_error).mean().item()
         return mean_td_error, mean_v
 
-    def train(self):
+    def train(self) -> None:
         if self.verbose:
             print("\nStarting training")
 
@@ -238,12 +251,12 @@ class TabularQLearningAgent:
             print(f"\treturn = {ep_return}")
             print(f"\tgoal = {goal}")
 
-    def run_train_episode(self, step_limit):
+    def run_train_episode(self, step_limit: int) -> tuple[float, int, bool]:
         o = self.env.reset()
         done = False
 
         steps = 0
-        episode_return = 0
+        episode_return = 0.0
 
         while not done and steps < step_limit:
             a = self.get_egreedy_action(o, self.get_epsilon())
@@ -264,17 +277,18 @@ class TabularQLearningAgent:
         return episode_return, steps, self.env.goal_reached()
 
     def run_eval_episode(self,
-                         env=None,
-                         render=False,
-                         eval_epsilon=0.05,
-                         render_mode="readable"):
+                         env: NASimEnv | None = None,
+                         render: bool = False,
+                         eval_epsilon: float = 0.05,
+                         render_mode: str = "readable"
+                         ) -> tuple[float, int, bool]:
         if env is None:
             env = self.env
         o = env.reset()
         done = False
 
         steps = 0
-        episode_return = 0
+        episode_return = 0.0
 
         line_break = "="*60
         if render:
@@ -294,6 +308,7 @@ class TabularQLearningAgent:
                 print("\n" + line_break)
                 print(f"Step {steps}")
                 print(line_break)
+                assert isinstance(env.action_space, FlatActionSpace)
                 print(f"Action Performed = {env.action_space.get_action(a)}")
                 env.render(render_mode)
                 print(f"Reward = {r}")

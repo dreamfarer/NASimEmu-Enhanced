@@ -1,13 +1,14 @@
-from .utils import INTERNET
-from .scenario import Scenario
-from .loader import ScenarioLoader
-from .loader_v2 import ScenarioLoaderV2
-from .generator import ScenarioGenerator
+from .utils import INTERNET as INTERNET
+from .scenario import Scenario as Scenario
+from .loader import ScenarioLoader as ScenarioLoader
+from .loader_v2 import ScenarioLoaderV2 as ScenarioLoaderV2
+from .generator import ScenarioGenerator as ScenarioGenerator
 import nasimemu.nasim.scenarios.benchmark as benchmark
 
 from pathlib import Path
+from typing import Any
 
-def make_benchmark_scenario(scenario_name, seed=None):
+def make_benchmark_scenario(scenario_name: str, seed: int | None = None) -> Scenario:
     """Generate or Load a benchmark Scenario.
 
     Parameters
@@ -41,7 +42,7 @@ def make_benchmark_scenario(scenario_name, seed=None):
         )
 
 
-def generate_scenario(num_hosts, num_services, **params):
+def generate_scenario(num_hosts: int, num_services: int, **params: Any) -> Scenario:
     """Generate Scenario from network parameters.
 
     Parameters
@@ -62,7 +63,7 @@ def generate_scenario(num_hosts, num_services, **params):
     return generator.generate(num_hosts, num_services, **params)
 
 
-def load_scenario(path, name=None):
+def load_scenario(path: str, name: str | None = None) -> Scenario:
     """Load NASim Environment from a .yaml scenario file.
 
     Parameters
@@ -78,6 +79,7 @@ def load_scenario(path, name=None):
     Scenario
         a new scenario object
     """
+    loader: ScenarioLoader | ScenarioLoaderV2
     if '.v2' in Path(path).suffixes:
         loader = ScenarioLoaderV2()
     else:
@@ -86,7 +88,7 @@ def load_scenario(path, name=None):
     return loader.load(path, name=name)
 
 
-def get_scenario_max(scenario_name):
+def get_scenario_max(scenario_name: str) -> Any:
     if scenario_name in benchmark.AVAIL_GEN_BENCHMARKS:
         return benchmark.AVAIL_GEN_BENCHMARKS[scenario_name]["max_score"]
     elif scenario_name in benchmark.AVAIL_STATIC_BENCHMARKS:

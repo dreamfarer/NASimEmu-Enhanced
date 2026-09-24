@@ -42,7 +42,7 @@ if __name__ == "__main__":
     dqn_agent = DQNAgent(env, verbose=False, **vars(args))
     dqn_agent.load(args.policy_path)
 
-    total_ret = 0
+    total_ret = 0.0
     total_steps = 0
     goals = 0
     print(f"\n{'-'*60}\nRunning DQN Policy:\n\t{args.policy_path}\n{'-'*60}")

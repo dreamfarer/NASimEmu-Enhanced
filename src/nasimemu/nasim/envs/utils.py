@@ -1,9 +1,14 @@
 import enum
+from typing import Any, Deque, List, Sequence, Tuple
+
 import numpy as np
 from collections import deque
 from itertools import permutations
 
 INTERNET = 0
+
+# (subnet, host) address of a host
+Address = Tuple[int, int]
 
 
 class OneHotBool(enum.IntEnum):
@@ -12,15 +17,15 @@ class OneHotBool(enum.IntEnum):
     FALSE = 2
 
     @staticmethod
-    def from_bool(b):
+    def from_bool(b: bool) -> "OneHotBool":
         if b:
             return OneHotBool.TRUE
         return OneHotBool.FALSE
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.name
 
 
@@ -30,10 +35,10 @@ class ServiceState(enum.IntEnum):
     PRESENT = 1     # service is running on the host
     ABSENT = 2      # service not running on the host
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.name
 
 
@@ -42,14 +47,16 @@ class AccessLevel(enum.IntEnum):
     USER = 1
     ROOT = 2
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.name
 
 
-def get_minimal_steps_to_goal(topology, sensitive_addresses):
+def get_minimal_steps_to_goal(
+    topology: Any, sensitive_addresses: Sequence[Address]
+) -> int:
     """Get the minimum total number of steps required to reach all sensitive
     hosts in the network starting from outside the network (i.e. can only
     reach exposed subnets).
@@ -102,7 +109,7 @@ def get_minimal_steps_to_goal(topology, sensitive_addresses):
     return shortest
 
 
-def min_subnet_depth(topology):
+def min_subnet_depth(topology: Any) -> List[float]:
     """Find the minumum depth of each subnet in the network graph in terms of steps
     from an exposed subnet to each subnet
 
@@ -121,8 +128,8 @@ def min_subnet_depth(topology):
 
     assert len(topology[0]) == num_subnets
 
-    depths = []
-    Q = deque()
+    depths: List[float] = []
+    Q: Deque[int] = deque()
     for subnet in range(num_subnets):
         if topology[subnet][INTERNET] == 1:
             depths.append(0)

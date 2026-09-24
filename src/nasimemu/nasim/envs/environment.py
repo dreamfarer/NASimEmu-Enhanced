@@ -2,18 +2,24 @@
 
 The NASimEnv class is the main interface for agents interacting with NASim.
 """
+from typing import TYPE_CHECKING, Any
+
 import gym
 import numpy as np
+from numpy.typing import NDArray
 from gym import spaces
 
 from .state import State
-from .render import Viewer
+from .render import Episode, Viewer
 from .network import Network
 from .observation import Observation
 from .action import Action, FlatActionSpace, ParameterisedActionSpace
 
+if TYPE_CHECKING:
+    from nasimemu.nasim.scenarios.scenario import Scenario
 
-class NASimEnv(gym.Env):
+
+class NASimEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
     """ A simulated computer network environment for pen-testing.
 
     Implements the OpenAI gym interface.
@@ -49,16 +55,16 @@ class NASimEnv(gym.Env):
     metadata = {'rendering.modes': ["readable"]}
     reward_range = (-float('inf'), float('inf'))
 
-    action_space = None
-    observation_space = None
-    current_state = None
-    last_obs = None
+    action_space: FlatActionSpace | ParameterisedActionSpace
+    observation_space: spaces.Box | None = None
+    current_state: State
+    last_obs: Observation | None = None
 
     def __init__(self,
-                 scenario,
-                 fully_obs=False,
-                 flat_actions=True,
-                 flat_obs=True):
+                 scenario: "Scenario",
+                 fully_obs: bool = False,
+                 flat_actions: bool = True,
+                 flat_obs: bool = True) -> None:
         """
         Parameters
         ----------
@@ -82,7 +88,7 @@ class NASimEnv(gym.Env):
 
         self.network = Network(scenario)
         self.current_state = State.generate_initial_state(self.network)
-        self._renderer = None
+        self._renderer: Viewer | None = None
         # self.reset()
 
         if self.flat_actions:
@@ -101,7 +107,7 @@ class NASimEnv(gym.Env):
 
         self.steps = 0
 
-    def reset(self):
+    def reset(self) -> NDArray[Any]:
         """Reset the state of the environment and returns the initial state.
 
         Implements gym.Env.reset().
@@ -121,7 +127,9 @@ class NASimEnv(gym.Env):
             return self.last_obs.numpy_flat()
         return self.last_obs.numpy()
 
-    def step(self, action):
+    def step(
+        self, action: Any
+    ) -> tuple[NDArray[Any], float, bool, dict[str, Any]]:
         """Run one step of the environment using action.
 
         Implements gym.Env.step().
@@ -153,18 +161,20 @@ class NASimEnv(gym.Env):
         self.last_obs = obs
 
         if self.flat_obs:
-            obs = obs.numpy_flat()
+            obs_array = obs.numpy_flat()
         else:
-            obs = obs.numpy()
+            obs_array = obs.numpy()
 
         self.steps += 1
 
         if not done and self.scenario.step_limit is not None:
             done = self.steps >= self.scenario.step_limit
 
-        return obs, reward, done, info
+        return obs_array, reward, done, info
 
-    def generative_step(self, state, action):
+    def generative_step(
+        self, state: State, action: Any
+    ) -> tuple[State, Observation, float, bool, dict[str, Any]]:
         """Run one step of the environment using action in given state.
 
         Parameters
@@ -203,7 +213,7 @@ class NASimEnv(gym.Env):
         reward = action_obs.value - action.cost
         return next_state, obs, reward, done, action_obs.info()
 
-    def generate_random_initial_state(self):
+    def generate_random_initial_state(self) -> State:
         """Generates a random initial state for environment.
 
         This only randomizes the host configurations (os, services)
@@ -217,7 +227,7 @@ class NASimEnv(gym.Env):
         """
         return State.generate_random_initial_state(self.network)
 
-    def generate_initial_state(self):
+    def generate_initial_state(self) -> State:
         """Generate the initial state for the environment.
 
         Returns
@@ -232,7 +242,11 @@ class NASimEnv(gym.Env):
         """
         return State.generate_initial_state(self.network)
 
-    def render(self, mode="readable", obs=None):
+    def render(
+        self,
+        mode: str = "readable",
+        obs: Observation | NDArray[Any] | None = None
+    ) -> None:
         """Render observation.
 
         See render module for more details on modes and symbols.
@@ -249,6 +263,7 @@ class NASimEnv(gym.Env):
         if obs is None:
             obs = self.last_obs
 
+        assert obs is not None
         if not isinstance(obs, Observation):
             obs = Observation.from_numpy(obs, self.current_state.shape())
 
@@ -263,7 +278,11 @@ class NASimEnv(gym.Env):
                 f"{self.rendering_modes}"
             )
 
-    def render_state(self, mode="readable", state=None):
+    def render_state(
+        self,
+        mode: str = "readable",
+        state: State | NDArray[Any] | None = None
+    ) -> None:
         """Render state.
 
         See render module for more details on modes and symbols.
@@ -298,7 +317,7 @@ class NASimEnv(gym.Env):
             print("Please choose correct render mode from :"
                   f"{self.rendering_modes}")
 
-    def render_action(self, action):
+    def render_action(self, action: int | Action) -> None:
         """Renders human readable version of action.
 
         This is mainly useful for getting a text description of the action
@@ -310,10 +329,12 @@ class NASimEnv(gym.Env):
             the action to render
         """
         if isinstance(action, int):
-            action = self.action_space[action]
+            action = self.action_space.actions[action]
         print(action)
 
-    def render_episode(self, episode, width=7, height=7):
+    def render_episode(
+        self, episode: Episode, width: int = 7, height: int = 7
+    ) -> None:
         """Render an episode as sequence of network graphs, where an episode
         is a sequence of (state, action, reward, done) tuples generated from
         interactions with environment.
@@ -331,7 +352,7 @@ class NASimEnv(gym.Env):
             self._renderer = Viewer(self.network)
         self._renderer.render_episode(episode, width, height)
 
-    def render_network_graph(self, ax=None, show=False):
+    def render_network_graph(self, ax: Any = None, show: bool = False) -> None:
         """Render a plot of network as a graph with hosts as nodes arranged
         into subnets and showing connections between subnets. Renders current
         state of network.
@@ -349,7 +370,7 @@ class NASimEnv(gym.Env):
         state = self.current_state
         self._renderer.render_graph(state, ax, show)
 
-    def get_minimum_actions(self):
+    def get_minimum_actions(self) -> int:
         """Get the minimum number of actions required to reach the goal.
 
         That is minimum number of actions to exploit all sensitive hosts on
@@ -362,7 +383,7 @@ class NASimEnv(gym.Env):
         """
         return self.network.get_minimal_steps()
 
-    def get_action_mask(self):
+    def get_action_mask(self) -> NDArray[np.int64]:
         """Get a vector mask for valid actions.
 
         Returns
@@ -377,11 +398,11 @@ class NASimEnv(gym.Env):
         mask = np.zeros(self.action_space.n, dtype=np.int64)
         for a_idx in range(self.action_space.n):
             action = self.action_space.get_action(a_idx)
-            if self.network.host_discovered(action.target):
+            if self.current_state.host_discovered(action.target):
                 mask[a_idx] = 1
         return mask
 
-    def get_score_upper_bound(self):
+    def get_score_upper_bound(self) -> float:
         """Get the theoretical upper bound for total reward for scenario.
 
         The theoretical upper bound score is where the agent exploits only a
@@ -401,7 +422,7 @@ class NASimEnv(gym.Env):
         max_reward -= self.network.get_minimal_steps()
         return max_reward
 
-    def goal_reached(self, state=None):
+    def goal_reached(self, state: State | None = None) -> bool:
         """Check if the state is the goal state.
 
         The goal state is when all sensitive hosts have been compromised.
@@ -421,7 +442,7 @@ class NASimEnv(gym.Env):
             state = self.current_state
         return self.network.all_sensitive_hosts_compromised(state)
 
-    def __str__(self):
+    def __str__(self) -> str:
         output = [
             "NASimEnv:",
             f"name={self.name}",

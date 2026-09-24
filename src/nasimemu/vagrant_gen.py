@@ -5,25 +5,26 @@ import sys
 import argparse
 import os.path as path
 from pathlib import Path
+from typing import Any, IO
 
 from .env_emu import EmulatedNetwork
 from .nasim.scenarios import load_scenario
-from .nasim.envs import NASimEnv
+from .nasim.envs.environment import NASimEnv
 
 class VagrantGenerator:
 
-    def __init__(self, scenario, vagrant_file):
+    def __init__(self, scenario: Any, vagrant_file: IO[str]) -> None:
         self.scenario = scenario
         self.vagrant_file = vagrant_file
         self.generate_vagrant()
 
-    def generate_vagrant(self):
+    def generate_vagrant(self) -> None:
         self.write_header()
         for host in self.scenario.hosts:
             self.add_host(self.scenario.hosts[host], self.scenario.hosts[host].address in self.scenario.sensitive_hosts)
         self.write_footer()
 
-    def write_header(self):
+    def write_header(self) -> None:
         self.vagrant_file.write(f"""# Use:
 # copy .vagrant file to ../vagrant/Vagrantfile
 # copy .rsc file to ../vagrant/firewall.rsc
@@ -80,13 +81,13 @@ Vagrant.configure("2") do |config|
     end
         """)
 
-    def write_footer(self):
+    def write_footer(self) -> None:
         self.vagrant_file.write("""
 end
         """)
 
     @staticmethod
-    def _get_provision_line(os, services, ip, subnet, varname, is_sensitive):
+    def _get_provision_line(os: dict[str, bool], services: dict[str, bool], ip: str, subnet: int, varname: str, is_sensitive: bool) -> str | None:
         enabled_services = [service for service in services if services[service]]
         if 'windows' in os and os['windows']:
             add_loot_line = f"{varname}.vm.provision \"shell\", path: 'target/windows-insert-loot.ps1'" if is_sensitive else ""
@@ -115,16 +116,18 @@ end
         {varname}.vm.provision "shell", path: 'target/linux-setup-network.py', args: '-subnetid {subnet}'
         {add_loot_line}
             """
+        return None
 
     @staticmethod
-    def _get_box_from_os(os):
+    def _get_box_from_os(os: dict[str, bool]) -> tuple[str, str] | None:
         if 'windows' in os and os['windows']:
             return "rapid7/metasploitable3-win2k8", "0.1.0-weekly"
         elif 'linux' in os and os['linux']:
             return "rapid7/metasploitable3-ub1404", "0.1.12-weekly"
+        return None
 
     @staticmethod
-    def _get_host_description(varname, hostname, ip, box, box_version, netmask, provision):
+    def _get_host_description(varname: str, hostname: str, ip: str, box: str, box_version: str, netmask: str, provision: str | None) -> str:
         return f"""
     config.vm.define "{hostname}" do |{varname}|
         {varname}.vm.box = "{box}"
@@ -138,25 +141,27 @@ end
     end
         """
 
-    def add_host(self, host, is_sensitive):
+    def add_host(self, host: Any, is_sensitive: bool) -> None:
         varname = 'target'
         hostname = f"target{host.address[0]}{host.address[1]}"
         ip = EmulatedNetwork._target_to_ip(host.address)
         subnet = host.address[0]
-        box, box_version = self._get_box_from_os(host.os)
+        box_info = self._get_box_from_os(host.os)
+        assert box_info is not None
+        box, box_version = box_info
         netmask = "255.255.255.0" 
         provision = self._get_provision_line(host.os, host.services, ip, subnet, varname, is_sensitive)
 
         self.vagrant_file.write(self._get_host_description(varname, hostname, ip, box, box_version, netmask, provision))
 
 class RouteOsGenerator:
-    def __init__(self, scenario, out=sys.stdout):
+    def __init__(self, scenario: Any, out: IO[str] = sys.stdout) -> None:
         self.out = out
         self.firewall = scenario.firewall
         self.topology = scenario.topology
         self.generate_firewall()
 
-    def generate_firewall(self):
+    def generate_firewall(self) -> None:
         """for link in self.firewall:
             for service_allowed in self.firewall[link]:
                 print(service_allowed, self.firewall[link][service_allowed])"""
@@ -169,7 +174,7 @@ class RouteOsGenerator:
         self.out.write(text_output)
 
 class VagrantClient:
-    def __init__(self, scenario, dst_file, routeos_file):
+    def __init__(self, scenario: Any, dst_file: str, routeos_file: str) -> None:
         self.scenario = scenario
 
         self.dst_file = dst_file
@@ -181,13 +186,13 @@ class VagrantClient:
         self.generate_vagrant_file()
         # self.launch_vagrant()
 
-    def generate_routeos_file(self):
+    def generate_routeos_file(self) -> None:
         self.logger.info("Generating routeos firewall file.")
         with open(self.routeos_file, "w") as file:
             RouteOsGenerator(self.scenario, out=file)
 
 
-    def generate_vagrant_file(self):
+    def generate_vagrant_file(self) -> None:
         self.logger.info("Generating Vagrantfile.")
         with open(self.dst_file, "w") as file:
             VagrantGenerator(self.scenario, file)
