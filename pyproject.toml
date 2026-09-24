@@ -48,8 +48,6 @@ packages = ["src/nasimemu"]
 python_version = "3.10"
 files = ["src/nasimemu"]
 
-# Packages that are neither installed in the isolated pre-commit environment
-# nor available as stubs.
 [[tool.mypy.overrides]]
 module = ["gym.*", "torch.*", "matplotlib.*", "plotly.*", "prettytable.*", "msgpack.*"]
 ignore_missing_imports = true
