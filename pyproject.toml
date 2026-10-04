@@ -25,11 +25,8 @@ dependencies = [
     "pymetasploit3 == 1.0.6", # Metasploit RPC client for emulation
     "requests", # For msf_interface shared session
     "retry", # For msf_interface shared session
-    "pillow", # For nasim_problem rendering
     "plotly", # For nasim_problem debug
     "scipy", # For networkx
-    # "pygame", # For nasim play
-    # "kaleido", # Image with plotly for nasim play
     "numpy==2.2.6",
 ]
 
@@ -53,5 +50,5 @@ strict = true
 files = ["src/nasimemu"]
 
 [[tool.mypy.overrides]]
-module = ["torch.*", "matplotlib.*", "plotly.*", "prettytable.*", "pymetasploit3.*"]
+module = ["matplotlib.*", "plotly.*", "prettytable.*", "pymetasploit3.*"]
 ignore_missing_imports = true

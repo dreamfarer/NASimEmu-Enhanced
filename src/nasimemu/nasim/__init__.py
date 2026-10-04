@@ -1,10 +1,6 @@
 from typing import Any
 
-import gymnasium as gym
-from gymnasium.envs.registration import register
-
 from nasimemu.nasim.envs.environment import NASimEnv
-from nasimemu.nasim.scenarios.benchmark import AVAIL_BENCHMARKS
 from nasimemu.nasim.scenarios import \
     make_benchmark_scenario, load_scenario, generate_scenario
 
@@ -124,81 +120,3 @@ def generate(num_hosts: int,
     scenario = generate_scenario(num_hosts, num_services, **params)
     return NASimEnv(scenario, **env_kwargs)
 
-
-# Register NASimEnv with OpenAI gym
-def _register(id: str, entry_point: str, kwargs: dict[str, Any],
-              nondeterministic: bool, force: bool = True) -> None:
-    """Registers NASim Open AI Gym Environment.
-
-    Handles issues with re-registering gym environments.
-    """
-    if id in gym.registry:
-        if not force:
-            return
-        del gym.registry[id]
-    register(
-        id=id,
-        entry_point=entry_point,
-        kwargs=kwargs,
-        nondeterministic=nondeterministic
-    )
-
-
-for benchmark in AVAIL_BENCHMARKS:
-    # v0 - flat_actions, flat_obs
-    # v1 - flat_actions, 2D_obs
-    # v2 - param_actions, flat obs
-    # v3 - param_actions, 2D obs
-    # tiny should yield Tiny and tiny-small should yield TinySmall
-    for fully_obs in [True, False]:
-        name = ''.join([g.capitalize() for g in benchmark.split("-")])
-        if not fully_obs:
-            name = f"{name}-PO"
-
-        _register(
-            id=f"{name}-v0",
-            entry_point='nasim.envs:NASimGymEnv',
-            kwargs={
-                "scenario": benchmark,
-                "fully_obs": fully_obs,
-                "flat_actions": True,
-                "flat_obs": True
-            },
-            nondeterministic=True
-        )
-
-        _register(
-            id=f"{name}-v1",
-            entry_point='nasim.envs:NASimGymEnv',
-            kwargs={
-                "scenario": benchmark,
-                "fully_obs": fully_obs,
-                "flat_actions": True,
-                "flat_obs": False
-            },
-            nondeterministic=True
-        )
-
-        _register(
-            id=f"{name}-v2",
-            entry_point='nasim.envs:NASimGymEnv',
-            kwargs={
-                "scenario": benchmark,
-                "fully_obs": fully_obs,
-                "flat_actions": False,
-                "flat_obs": True
-            },
-            nondeterministic=True
-        )
-
-        _register(
-            id=f"{name}-v3",
-            entry_point='nasim.envs:NASimGymEnv',
-            kwargs={
-                "scenario": benchmark,
-                "fully_obs": fully_obs,
-                "flat_actions": False,
-                "flat_obs": False
-            },
-            nondeterministic=True
-        )
