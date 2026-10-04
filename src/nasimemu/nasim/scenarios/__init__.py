@@ -1,6 +1,5 @@
 from .utils import INTERNET as INTERNET
 from .scenario import Scenario as Scenario
-from .loader import ScenarioLoader as ScenarioLoader
 from .loader_v2 import ScenarioLoaderV2 as ScenarioLoaderV2
 from .generator import ScenarioGenerator as ScenarioGenerator
 import nasimemu.nasim.scenarios.benchmark as benchmark
@@ -9,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 def make_benchmark_scenario(scenario_name: str, seed: int | None = None) -> Scenario:
-    """Generate or Load a benchmark Scenario.
+    """Generate a benchmark Scenario.
 
     Parameters
     ----------
@@ -32,13 +31,10 @@ def make_benchmark_scenario(scenario_name: str, seed: int | None = None) -> Scen
         params = benchmark.AVAIL_GEN_BENCHMARKS[scenario_name]
         params['seed'] = seed
         return generate_scenario(**params)
-    elif scenario_name in benchmark.AVAIL_STATIC_BENCHMARKS:
-        scenario_def = benchmark.AVAIL_STATIC_BENCHMARKS[scenario_name]
-        return load_scenario(scenario_def["file"], name=scenario_name)
     else:
         raise NotImplementedError(
             f"Benchmark scenario '{scenario_name}' not available."
-            f"Available scenarios are: {benchmark.AVAIL_BENCHMARKS}"
+            f"Available scenarios are: {list(benchmark.AVAIL_GEN_BENCHMARKS)}"
         )
 
 
@@ -64,12 +60,12 @@ def generate_scenario(num_hosts: int, num_services: int, **params: Any) -> Scena
 
 
 def load_scenario(path: str, name: str | None = None) -> Scenario:
-    """Load NASim Environment from a .yaml scenario file.
+    """Load NASim Environment from a .v2.yaml scenario file.
 
     Parameters
     ----------
     path : str
-        path to the .yaml scenario file
+        path to the .v2.yaml scenario file
     name : str, optional
         the scenarios name, if None name will be generated from path
         (default=None)
@@ -79,18 +75,13 @@ def load_scenario(path: str, name: str | None = None) -> Scenario:
     Scenario
         a new scenario object
     """
-    loader: ScenarioLoader | ScenarioLoaderV2
-    if '.v2' in Path(path).suffixes:
-        loader = ScenarioLoaderV2()
-    else:
-        loader = ScenarioLoader()
+    if '.v2' not in Path(path).suffixes:
+        raise ValueError(f"Only V2 scenarios (.v2.yaml) are supported: {path}")
 
-    return loader.load(path, name=name)
+    return ScenarioLoaderV2().load(path, name=name)
 
 
 def get_scenario_max(scenario_name: str) -> Any:
     if scenario_name in benchmark.AVAIL_GEN_BENCHMARKS:
         return benchmark.AVAIL_GEN_BENCHMARKS[scenario_name]["max_score"]
-    elif scenario_name in benchmark.AVAIL_STATIC_BENCHMARKS:
-        return benchmark.AVAIL_STATIC_BENCHMARKS[scenario_name]["max_score"]
     return None

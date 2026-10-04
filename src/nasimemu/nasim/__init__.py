@@ -1,63 +1,22 @@
 from typing import Any
 
 from nasimemu.nasim.envs.environment import NASimEnv
-from nasimemu.nasim.scenarios import \
-    make_benchmark_scenario, load_scenario, generate_scenario
+from nasimemu.nasim.scenarios import load_scenario, generate_scenario
 
 
-__all__ = ['make_benchmark', 'load', 'generate']
-
-def make_benchmark(scenario_name: str,
-                   seed: int | None = None,
-                   fully_obs: bool = False,
-                   flat_actions: bool = True,
-                   flat_obs: bool = True) -> NASimEnv:
-    """Make a new benchmark NASim environment.
-
-    Parameters
-    ----------
-    scenario_name : str
-        the name of the benchmark environment
-    seed : int, optional
-        random seed to use to generate environment (default=None)
-    fully_obs : bool, optional
-        the observability mode of environment, if True then uses fully
-        observable mode, otherwise partially observable (default=False)
-    flat_actions : bool, optional
-        if true then uses a flat action space, otherwise will use
-        parameterised action space (default=True).
-    flat_obs : bool, optional
-        if true then uses a 1D observation space. If False
-        will use a 2D observation space (default=True)
-
-    Returns
-    -------
-    NASimEnv
-        a new environment instance
-
-    Raises
-    ------
-    NotImplementederror
-        if scenario_name does no match any implemented benchmark scenarios.
-    """
-    env_kwargs = {"fully_obs": fully_obs,
-                  "flat_actions": flat_actions,
-                  "flat_obs": flat_obs}
-    scenario = make_benchmark_scenario(scenario_name, seed)
-    return NASimEnv(scenario, **env_kwargs)
-
+__all__ = ['load', 'generate']
 
 def load(path: str,
          fully_obs: bool = False,
          flat_actions: bool = True,
          flat_obs: bool = True,
          name: str | None = None) -> NASimEnv:
-    """Load NASim Environment from a .yaml scenario file.
+    """Load NASim Environment from a .v2.yaml scenario file.
 
     Parameters
     ----------
     path : str
-        path to the .yaml scenario file
+        path to the .v2.yaml scenario file
     fully_obs : bool, optional
         The observability mode of environment, if True then uses fully
         observable mode, otherwise partially observable (default=False)
