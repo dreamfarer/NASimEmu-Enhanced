@@ -12,6 +12,8 @@ To see available running arguments:
 $ python random_agent.py --help
 """
 
+from typing import Any
+
 import numpy as np
 
 from nasimemu import nasim
@@ -32,11 +34,12 @@ def run_random_agent(env: NASimEnv, step_limit: float = 1e6,
     total_reward = 0.0
     done = False
     t = 0
-    a = 0
+    a: Any = 0
 
     while not done and t < step_limit:
         a = env.action_space.sample()
-        _, r, done, _ = env.step(a)
+        _, r, terminated, truncated, _ = env.step(a)
+        done = terminated or truncated
         total_reward += r
         if (t+1) % 100 == 0 and verbose:
             print(f"{t}: {total_reward}")

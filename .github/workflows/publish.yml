@@ -36,15 +36,12 @@ jobs:
       - name: Check distribution metadata
         run: uvx twine check --strict dist/*
 
-      # gym 0.21.0 has invalid metadata that uv and pip >= 24.1 reject, so the
-      # smoke tests install with legacy pip/setuptools until gym is dropped.
       - name: Smoke test (wheel and source distribution)
         run: |
           for dist in dist/*.whl dist/*.tar.gz; do
             rm -rf .smoke-venv
-            uv venv --python 3.10 --seed .smoke-venv
-            .smoke-venv/bin/python -m pip install "pip<24.1" "setuptools<66" "wheel<0.40" hatchling hatch-vcs
-            .smoke-venv/bin/python -m pip install --no-build-isolation "$dist"
+            uv venv --python 3.10 .smoke-venv
+            uv pip install --python .smoke-venv/bin/python "$dist"
             .smoke-venv/bin/python -c "import nasimemu.env"
           done
 

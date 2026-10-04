@@ -31,7 +31,7 @@ T = TypeVar("T")
 
 
 def print_actions(action_space: FlatActionSpace) -> None:
-    for a in range(action_space.n):
+    for a in range(int(action_space.n)):
         print(f"{a} {action_space.get_action(a)}")
     print(LINE_BREAK)
 
@@ -175,14 +175,15 @@ def run_keyboard_agent(env: NASimEnv,
     print("STARTING EPISODE")
     print(LINE_BREAK2)
 
-    o = env.reset()
+    o, _ = env.reset()
     env.render(render_mode)
     total_reward = 0.0
     total_steps = 0
     done = False
     while not done:
         a = choose_action(env)
-        o, r, done, _ = env.step(a)
+        o, r, terminated, truncated, _ = env.step(a)
+        done = terminated or truncated
         total_reward += r
         total_steps += 1
         print("\n" + LINE_BREAK2)
@@ -227,7 +228,8 @@ def run_generative_keyboard_agent(
     print("STARTING EPISODE")
     print(LINE_BREAK2)
 
-    o: Observation | NDArray[Any] = env.reset()
+    o: Observation | NDArray[Any]
+    o, _ = env.reset()
     s = env.current_state
     env.render_state(render_mode, s)
     env.render(render_mode, o)

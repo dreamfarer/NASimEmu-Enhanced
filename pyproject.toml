@@ -11,13 +11,13 @@ authors = [
 maintainers = [
     {name="dreamfarer"}
 ]
-description = "Gym based environment for training offensive RL agents in simulated and emulated computer networks."
+description = "Gymnasium based environment for training offensive RL agents in simulated and emulated computer networks."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.10,<3.11"
+requires-python = ">=3.10"
 dependencies = [
-    "gym == 0.21.0",
+    "gymnasium==1.3",
     "networkx", # For nasim render
     "prettytable", # For nasim render
     "matplotlib", # For nasim render (suppress warning)
@@ -30,6 +30,7 @@ dependencies = [
     "scipy", # For networkx
     # "pygame", # For nasim play
     # "kaleido", # Image with plotly for nasim play
+    "numpy==2.2.6",
 ]
 
 [project.urls]
@@ -52,5 +53,5 @@ strict = true
 files = ["src/nasimemu"]
 
 [[tool.mypy.overrides]]
-module = ["gym.*", "torch.*", "matplotlib.*", "plotly.*", "prettytable.*", "pymetasploit3.*"]
+module = ["torch.*", "matplotlib.*", "plotly.*", "prettytable.*", "pymetasploit3.*"]
 ignore_missing_imports = true

@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
-from gym import spaces
+from gymnasium import spaces
 
 from .utils import AccessLevel, Address
 
@@ -665,7 +665,7 @@ class ActionResult:
         return "\n".join(output)
 
 
-class FlatActionSpace(spaces.Discrete):  # type: ignore[misc]  # gym spaces are untyped
+class FlatActionSpace(spaces.Discrete[np.int64]):
     """Flat Action space for NASim environment.
 
     Inherits and implements the gym.spaces.Discrete action space
@@ -709,7 +709,7 @@ class FlatActionSpace(spaces.Discrete):  # type: ignore[misc]  # gym spaces are 
         return self.actions[action_idx]
 
 
-class ParameterisedActionSpace(spaces.MultiDiscrete):  # type: ignore[misc]  # gym spaces are untyped
+class ParameterisedActionSpace(spaces.MultiDiscrete):
     """A parameterised action space for NASim environment.
 
     Inherits and implements the gym.spaces.MultiDiscrete action space, where

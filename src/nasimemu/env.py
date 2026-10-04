@@ -1,4 +1,4 @@
-import gym, random, copy
+import gymnasium as gym, random, copy
 from typing import Any
 import numpy as np
 from numpy.typing import NDArray
@@ -11,7 +11,6 @@ from nasimemu.nasim.scenarios.benchmark.generated import AVAIL_GEN_BENCHMARKS
 from nasimemu.nasim.envs.environment import NASimEnv
 from nasimemu.nasim.envs.host_vector import HostVector
 from nasimemu.env_emu import EmulatedNASimEnv
-import traceback
 
 class TerminalAction():
     pass
@@ -66,7 +65,7 @@ class PartiallyObservableWrapper():
         return obs
 
 # observation_format in ['matrix', 'graph']
-class NASimEmuEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
+class NASimEmuEnv(gym.Env[Any, Any]):
     def __init__(self, scenario_name: str, emulate: bool = False, step_limit: int | None = None, random_init: bool = False, observation_format: str = 'matrix', fully_obs: bool = False, augment_with_action: bool = False, verbose: bool = False) -> None:
         # different processes need different seeds
         random.seed()
@@ -171,21 +170,22 @@ class NASimEmuEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
         return s
 
     # action = ((subnet, host), action_id)
-    def step(self, action: Any) -> tuple[Any, float, bool, dict[str, Any]]:
+    def step(self, action: Any) -> tuple[Any, float, bool, bool, dict[str, Any]]:
         s: Any
         if type(action) in [np.ndarray, list, tuple]:
             a = self._translate_action(action)
         else:
             a = action
 
-        if isinstance(a, TerminalAction):
-            s, r, d, i = self.env.step(NoOp())
+        # ignore the flags from the environment, the agent has to choose to terminate
+        terminated = isinstance(a, TerminalAction)
+
+        if terminated:
+            s, r, _, _, i = self.env.step(NoOp())
             r = 0.
-            d = True
 
         else:
-            s, r, d, i = self.env.step(a)
-            d = False # ignore done flag from the environment, the agent has to choose to terminate
+            s, r, _, _, i = self.env.step(a)
 
         r /= 10. # reward scaling
         self.r_tot += r
@@ -214,7 +214,7 @@ class NASimEmuEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
             print(f"Step: {self.step_idx}")
             # print(f"Raw state: \n {s}")
             print(f"Action: {a}")
-            print(f"R: {r} D: {d}")
+            print(f"R: {r} D: {terminated}")
             print(f"Info: {i}")
 
             self.env.render(obs=s)
@@ -237,31 +237,33 @@ class NASimEmuEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
             s = env_utils.convert_to_graph(s, self.subnet_graph, version=2)
 
         i['s_true'] = s
-        i['d_true'] = d
         i['step_idx'] = self.step_idx
         i['subnet_graph'] = self.subnet_graph
         i['r_tot'] = self.r_tot
         i['captured'] = self.captured
 
-        if (self.step_limit is not None) and (self.step_idx >= self.step_limit):
-            d = True
+        truncated = (not terminated) and (self.step_limit is not None) and (self.step_idx >= self.step_limit)
 
-        if d:
-            s = self.reset()
+        i['done'] = terminated or truncated
+        i['d_true'] = terminated or truncated # fix: this will disable the difference between true termination and step_limit exceedance - both are treated the same
 
-        i['done'] = d
-        i['d_true'] = d # fix: this will disable the difference between true termination and step_limit exceedance - both are treated the same
+        return s, r, terminated, truncated, i
 
-        return s, r, d, i
+    def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[Any, dict[str, Any]]:
+        super().reset(seed=seed)
 
-    def reset(self) -> Any:
+        if seed is not None: # the simulation draws from the global generators
+            random.seed(seed)
+            np.random.seed(seed)
+
         self.step_idx = 0
         self.r_tot = 0.
         self.captured = 0
 
         self._generate_env() # generate new env
 
-        s: Any = self.env.reset()
+        s: Any
+        s, _ = self.env.reset()
 
         if not self.fully_obs:
             s = self.env_po_wrapper.reset(s)
@@ -297,9 +299,9 @@ class NASimEmuEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
             self.env.render_state()
             self.env.render(obs=s)
 
-        return s
+        return s, {}
 
-    def render(self, s: NDArray[Any]) -> None:
+    def render(self, s: NDArray[Any]) -> None:  # type: ignore[override]  # renders the given observation
         self.env.render(obs=s)
 
     def render_state(self) -> None:

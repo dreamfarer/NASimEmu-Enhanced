@@ -1,7 +1,7 @@
 from typing import Any
 
-import gym
-from gym.envs.registration import register
+import gymnasium as gym
+from gymnasium.envs.registration import register
 
 from nasimemu.nasim.envs.environment import NASimEnv
 from nasimemu.nasim.scenarios.benchmark import AVAIL_BENCHMARKS
@@ -132,11 +132,10 @@ def _register(id: str, entry_point: str, kwargs: dict[str, Any],
 
     Handles issues with re-registering gym environments.
     """
-    env_specs = gym.envs.registry.env_specs
-    if id in env_specs.keys():
+    if id in gym.registry:
         if not force:
             return
-        del env_specs[id]
+        del gym.registry[id]
     register(
         id=id,
         entry_point=entry_point,

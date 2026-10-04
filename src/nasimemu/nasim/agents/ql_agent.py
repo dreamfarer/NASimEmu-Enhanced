@@ -39,7 +39,7 @@ from nasimemu.nasim.envs.environment import NASimEnv
 try:
     from torch.utils.tensorboard import SummaryWriter
 except ImportError as e:
-    from gym import error
+    from gymnasium import error
     raise error.DependencyNotInstalled(
         f"{e}. (HINT: you can install tabular_q_learning_agent dependencies "
         "by running 'pip install nasim[dqn]'.)"
@@ -116,7 +116,8 @@ class TabularQLearningAgent:
         # envirnment setup
         self.env = env
 
-        self.num_actions: int = self.env.action_space.n
+        assert isinstance(self.env.action_space, FlatActionSpace)
+        self.num_actions = int(self.env.action_space.n)
         assert self.env.observation_space is not None
         self.obs_dim = self.env.observation_space.shape
 
@@ -214,7 +215,7 @@ class TabularQLearningAgent:
             print(f"\tgoal = {goal}")
 
     def run_train_episode(self, step_limit: int) -> tuple[float, int, bool]:
-        s = self.env.reset()
+        s, _ = self.env.reset()
         done = False
 
         steps = 0
@@ -223,7 +224,8 @@ class TabularQLearningAgent:
         while not done and steps < step_limit:
             a = self.get_egreedy_action(s, self.get_epsilon())
 
-            next_s, r, done, _ = self.env.step(a)
+            next_s, r, terminated, truncated, _ = self.env.step(a)
+            done = terminated or truncated
             self.steps_done += 1
             td_error, s_value = self.optimize(s, a, next_s, r, done)
             self.logger.add_scalar("td_error", td_error, self.steps_done)
@@ -243,7 +245,7 @@ class TabularQLearningAgent:
                          ) -> tuple[float, int, bool]:
         if env is None:
             env = self.env
-        s = env.reset()
+        s, _ = env.reset()
         done = False
 
         steps = 0
@@ -259,7 +261,8 @@ class TabularQLearningAgent:
 
         while not done:
             a = self.get_egreedy_action(s, eval_epsilon)
-            next_s, r, done, _ = env.step(a)
+            next_s, r, terminated, truncated, _ = env.step(a)
+            done = terminated or truncated
             s = next_s
             episode_return += r
             steps += 1

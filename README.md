@@ -20,33 +20,31 @@ The accompanying paper *NASimEmu: Network Attack Simulator & Emulator for Traini
 
 ## Installation
 
-> **Warning:** NASimEmu-Enhanced 1.x depends on `gym==0.21.0`, whose package metadata is rejected by current packaging tools. Until `gym` is replaced, install with legacy tooling on Python 3.10:
->
-> ```
-> python3.10 -m venv .venv && source .venv/bin/activate
-> pip install "pip<24.1" "setuptools<66" "wheel<0.40"
-> pip install --no-build-isolation nasimemu-enhanced
-> ```
+NASimEmu-Enhanced implements the [Gymnasium](https://gymnasium.farama.org/) API and runs on Python 3.10 and newer:
+```
+pip install nasimemu-enhanced
+```
 
 The scenario files are not part of the package; get them from the [`scenarios/`](https://github.com/dreamfarer/NASimEmu-Enhanced/tree/main/scenarios) folder of this repository.
 
-For development, clone the repository and install it in editable mode (same legacy tooling as above):
+For development, clone the repository and install it in editable mode:
 ```
 git clone https://github.com/dreamfarer/NASimEmu-Enhanced.git
-cd NASimEmu-Enhanced; pip install hatchling editables; pip install --no-build-isolation -e .
+cd NASimEmu-Enhanced; pip install -e .
 ```
 
 To use emulation, you have to install [Vagrant](https://developer.hashicorp.com/vagrant/downloads) yourself; see [EMULATION](https://github.com/dreamfarer/NASimEmu-Enhanced/blob/main/docs/EMULATION.md).
 
 ## Usage
 ```python
-import gym, random, logging
+import gymnasium as gym, random, logging
 import nasimemu, nasimemu.env_utils as env_utils
 
 # In this example, a scenario instance is randomly generated from either 'entry_dmz_one_subnet' or 'entry_dmz_two_subnets' on every new episode. Make sure the path to scenarios is correct.
 # To use emulation, setup Vagrant and change emulate=True.
-env = gym.make('NASimEmu-v0', emulate=False, scenario_name='scenarios/entry_dmz_one_subnet.v2.yaml:scenarios/entry_dmz_two_subnets.v2.yaml')
-s = env.reset()
+# Gymnasium wrappers do not forward the env's own attributes (e.g. action_list) and render(s), hence .unwrapped.
+env = gym.make('NASimEmu-v0', emulate=False, scenario_name='scenarios/entry_dmz_one_subnet.v2.yaml:scenarios/entry_dmz_two_subnets.v2.yaml').unwrapped
+s, info = env.reset()
 
 # To see the emulation logs, uncomment the following:
 # logging.basicConfig(level=logging.DEBUG)
@@ -63,18 +61,19 @@ for _ in range(3):
     # s_graph = env_utils.convert_to_graph(s)
 
     action = random.choice(actions)
-    s, r, done, info = env.step(action)
+    # terminated: the agent chose the terminal action; truncated: step_limit was reached; call env.reset() to start a new episode
+    s, r, terminated, truncated, info = env.step(action)
 
     print(f"Possible actions: {actions}")
 
     (action_subnet, action_host), action_id = action
     print(f"Taken action: {action}; subnet_id={action_subnet}, host_id={action_host}, action={env.action_list[action_id]}")
-    print(f"reward: {r}, done: {done}\n")
+    print(f"reward: {r}, terminated: {terminated}, truncated: {truncated}\n")
     input()
 ```
 
-## Gym integration
-NASimEmu currently doesn't support many of the default agents made for gym, because it uses custom environment spaces (the size of the environment is unknown to the attacker at the beginning) and an action space that changes at each step when a new host is discovered.
+## Gymnasium integration
+NASimEmu currently doesn't support many of the default agents made for Gymnasium, because it uses custom environment spaces (the size of the environment is unknown to the attacker at the beginning) and an action space that changes at each step when a new host is discovered.
 
 ## Implemented Deep RL Agents
 See the separate repository [NASimEmu-agents](https://github.com/jaromiru/NASimEmu-agents) for implemented agents.

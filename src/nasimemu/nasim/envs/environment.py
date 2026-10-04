@@ -4,10 +4,10 @@ The NASimEnv class is the main interface for agents interacting with NASim.
 """
 from typing import TYPE_CHECKING, Any
 
-import gym
+import gymnasium as gym
 import numpy as np
 from numpy.typing import NDArray
-from gym import spaces
+from gymnasium import spaces
 
 from .state import State
 from .render import Episode, Viewer
@@ -19,10 +19,10 @@ if TYPE_CHECKING:
     from nasimemu.nasim.scenarios.scenario import Scenario
 
 
-class NASimEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
+class NASimEnv(gym.Env[Any, Any]):
     """ A simulated computer network environment for pen-testing.
 
-    Implements the OpenAI gym interface.
+    Implements the Gymnasium interface.
 
     ...
 
@@ -56,7 +56,7 @@ class NASimEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
     reward_range = (-float('inf'), float('inf'))
 
     action_space: FlatActionSpace | ParameterisedActionSpace
-    observation_space: spaces.Box | None = None
+    observation_space: spaces.Box | None = None  # type: ignore[assignment]  # no observation space is defined yet
     current_state: State
     last_obs: Observation | None = None
 
@@ -107,16 +107,21 @@ class NASimEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
 
         self.steps = 0
 
-    def reset(self) -> NDArray[Any]:
+    def reset(
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
+    ) -> tuple[NDArray[Any], dict[str, Any]]:
         """Reset the state of the environment and returns the initial state.
 
-        Implements gym.Env.reset().
+        Implements gymnasium.Env.reset().
 
         Returns
         -------
         numpy.Array
             the initial observation of the environment
+        dict
+            auxiliary information (empty)
         """
+        super().reset(seed=seed)
         self.steps = 0
         self.current_state = self.network.reset(self.current_state)
         self.last_obs = self.current_state.get_initial_observation(
@@ -124,15 +129,15 @@ class NASimEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
         )
 
         if self.flat_obs:
-            return self.last_obs.numpy_flat()
-        return self.last_obs.numpy()
+            return self.last_obs.numpy_flat(), {}
+        return self.last_obs.numpy(), {}
 
     def step(
         self, action: Any
-    ) -> tuple[NDArray[Any], float, bool, dict[str, Any]]:
+    ) -> tuple[NDArray[Any], float, bool, bool, dict[str, Any]]:
         """Run one step of the environment using action.
 
-        Implements gym.Env.step().
+        Implements gymnasium.Env.step().
 
         Parameters
         ----------
@@ -148,12 +153,14 @@ class NASimEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
         float
             reward from performing action
         bool
-            whether the episode has ended or not
+            whether the goal has been reached
+        bool
+            whether the step limit of the scenario has been reached
         dict
             auxiliary information regarding step
             (see :func:`nasim.env.action.ActionResult.info`)
         """
-        next_state, obs, reward, done, info = self.generative_step(
+        next_state, obs, reward, terminated, info = self.generative_step(
             self.current_state,
             action
         )
@@ -167,10 +174,13 @@ class NASimEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
 
         self.steps += 1
 
-        if not done and self.scenario.step_limit is not None:
-            done = self.steps >= self.scenario.step_limit
+        truncated = (
+            not terminated
+            and self.scenario.step_limit is not None
+            and self.steps >= self.scenario.step_limit
+        )
 
-        return obs_array, reward, done, info
+        return obs_array, reward, terminated, truncated, info
 
     def generative_step(
         self, state: State, action: Any
@@ -275,7 +285,7 @@ class NASimEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
         else:
             print(
                 "Please choose correct render mode from :"
-                f"{self.rendering_modes}"
+                f"{self.metadata['rendering.modes']}"
             )
 
     def render_state(
@@ -315,7 +325,7 @@ class NASimEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
             self._renderer.render_readable_state(state)
         else:
             print("Please choose correct render mode from :"
-                  f"{self.rendering_modes}")
+                  f"{self.metadata['rendering.modes']}")
 
     def render_action(self, action: int | Action) -> None:
         """Renders human readable version of action.
@@ -395,8 +405,9 @@ class NASimEnv(gym.Env):  # type: ignore[misc]  # gym.Env is untyped
         """
         assert isinstance(self.action_space, FlatActionSpace), \
             "Can only use action mask function when using flat action space"
-        mask = np.zeros(self.action_space.n, dtype=np.int64)
-        for a_idx in range(self.action_space.n):
+        num_actions = int(self.action_space.n)
+        mask = np.zeros(num_actions, dtype=np.int64)
+        for a_idx in range(num_actions):
             action = self.action_space.get_action(a_idx)
             if self.current_state.host_discovered(action.target):
                 mask[a_idx] = 1

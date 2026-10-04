@@ -40,7 +40,7 @@ from nasimemu.nasim.envs.environment import NASimEnv
 try:
     from torch.utils.tensorboard import SummaryWriter
 except ImportError as e:
-    from gym import error
+    from gymnasium import error
     raise error.DependencyNotInstalled(
         f"{e}. (HINT: you can install tabular_q_learning_agent dependencies "
         "by running 'pip install nasim[dqn]'.)"
@@ -149,7 +149,8 @@ class TabularQLearningAgent:
         # envirnment setup
         self.env = env
 
-        self.num_actions: int = self.env.action_space.n
+        assert isinstance(self.env.action_space, FlatActionSpace)
+        self.num_actions = int(self.env.action_space.n)
         assert self.env.observation_space is not None
         self.obs_dim: tuple[int, ...] = self.env.observation_space.shape
 
@@ -252,7 +253,7 @@ class TabularQLearningAgent:
             print(f"\tgoal = {goal}")
 
     def run_train_episode(self, step_limit: int) -> tuple[float, int, bool]:
-        o = self.env.reset()
+        o, _ = self.env.reset()
         done = False
 
         steps = 0
@@ -261,7 +262,8 @@ class TabularQLearningAgent:
         while not done and steps < step_limit:
             a = self.get_egreedy_action(o, self.get_epsilon())
 
-            next_o, r, done, _ = self.env.step(a)
+            next_o, r, terminated, truncated, _ = self.env.step(a)
+            done = terminated or truncated
             self.replay.store(o, a, next_o, r, done)
             self.steps_done += 1
             mean_td_error, mean_v = self.optimize()
@@ -284,7 +286,7 @@ class TabularQLearningAgent:
                          ) -> tuple[float, int, bool]:
         if env is None:
             env = self.env
-        o = env.reset()
+        o, _ = env.reset()
         done = False
 
         steps = 0
@@ -300,7 +302,8 @@ class TabularQLearningAgent:
 
         while not done:
             a = self.get_egreedy_action(o, eval_epsilon)
-            next_o, r, done, _ = env.step(a)
+            next_o, r, terminated, truncated, _ = env.step(a)
+            done = terminated or truncated
             o = next_o
             episode_return += r
             steps += 1
