@@ -6,6 +6,7 @@ repos:
         args: []
         pass_filenames: false
         additional_dependencies:
+          - gymnasium
           - numpy
           - types-networkx
           - types-PyYAML

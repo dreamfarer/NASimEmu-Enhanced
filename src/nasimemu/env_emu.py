@@ -398,20 +398,20 @@ class EmulatedNASimEnv(NASimEnv):
         self.emulated_network = EmulatedNetwork(self.current_state.tensor.shape[1], self.scenario)
         self.logger = logging.getLogger("EmulatedNASimEnv")
 
-    def reset(self) -> NDArray[Any]:
-        super().reset()
+    def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[NDArray[Any], dict[str, Any]]:
+        super().reset(seed=seed)
 
         self.logger.info("reset()")
         s = self.emulated_network.initial_scan()
-        return s
+        return s, {}
 
-    def step(self, a: Any) -> tuple[NDArray[Any], float, bool, dict[str, Any]]:
+    def step(self, a: Any) -> tuple[NDArray[Any], float, bool, bool, dict[str, Any]]:
         time.sleep(2)
 
         self.logger.info(f"step() with {a}")
         s, i = self.emulated_network.translate_action(a)
 
-        return s, 0., False, i  # s, r, d, i
+        return s, 0., False, False, i  # s, r, terminated, truncated, i
 
 if __name__ == '__main__':
     # useful for testing
@@ -434,5 +434,5 @@ if __name__ == '__main__':
     # a = nasim.envs.action.PrivilegeEscalation(name='pe_kernel', process=None, access=1, target=(1,0), cost=1.0)
     a = ServiceScan(target=(1,0), cost=1.0)
 
-    s, r, d, i = env.step(a)
-    print(s, r, d, i)
+    s, r, terminated, truncated, i = env.step(a)
+    print(s, r, terminated, truncated, i)

@@ -17,6 +17,7 @@ from itertools import product
 from typing import cast
 
 from nasimemu import nasim
+from nasimemu.nasim.envs.action import FlatActionSpace
 from nasimemu.nasim.envs.environment import NASimEnv
 
 LINE_BREAK = "-"*60
@@ -57,25 +58,28 @@ def run_bruteforce_agent(env: NASimEnv, step_limit: float = 1e6,
     cycle_complete = False
     act: int | tuple[int, ...]
 
-    if env.flat_actions:
+    action_space = env.action_space
+
+    if isinstance(action_space, FlatActionSpace):
         act = 0
     else:
-        act_iter = product(*[range(n) for n in env.action_space.nvec])
+        act_iter = product(*[range(n) for n in action_space.nvec])
 
     while not done and steps < step_limit:
-        if env.flat_actions:
-            act = (cast(int, act) + 1) % env.action_space.n
+        if isinstance(action_space, FlatActionSpace):
+            act = (cast(int, act) + 1) % int(action_space.n)
             cycle_complete = (steps > 0 and act == 0)
         else:
             try:
                 act = next(act_iter)
                 cycle_complete = False
             except StopIteration:
-                act_iter = product(*[range(n) for n in env.action_space.nvec])
+                act_iter = product(*[range(n) for n in action_space.nvec])
                 act = next(act_iter)
                 cycle_complete = True
 
-        _, rew, done, _ = env.step(act)
+        _, rew, terminated, truncated, _ = env.step(act)
+        done = terminated or truncated
         total_reward += rew
 
         if cycle_complete and verbose:
@@ -121,7 +125,7 @@ if __name__ == "__main__":
         not args.param_actions,
         not args.box_obs
     )
-    if not args.param_actions:
+    if isinstance(nasimenv.action_space, FlatActionSpace):
         print(nasimenv.action_space.n)
     else:
         print(nasimenv.action_space.nvec)
