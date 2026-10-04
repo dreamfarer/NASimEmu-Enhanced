@@ -2,7 +2,9 @@
 # By default, the msfrcpd password is 'msfpassword'.
 
 from typing import Any
-from nasimemu.pymetasploit3.msfrpc import MsfRpcClient
+import requests
+from retry import retry
+from pymetasploit3.msfrpc import MsfRpcClient, MsfError, PayloadModule
 import time, re
 import logging
 from pprint import pprint
@@ -13,11 +15,30 @@ def _group1(match: "re.Match[str] | None") -> str:
     return match.group(1)
 
 
+class _SharedSessionMsfRpcClient(MsfRpcClient):  # type: ignore[misc]
+    """MsfRpcClient that reuses a single requests.Session across all RPC calls.
+
+    The upstream client opens a fresh TCP connection for every RPC call; over a
+    full episode that is a large amount of needless connection setup. Reusing one
+    pooled session is one of NASimEmu's patches, moved here out of the vendored fork.
+    """
+
+    def __init__(self, password: str, **kwargs: Any) -> None:
+        # Must exist before super().__init__, which logs in (and thus posts) immediately.
+        self._session = requests.Session()
+        super().__init__(password, **kwargs)
+
+    @retry(tries=3, delay=1, backoff=2)
+    def post_request(self, url: str, payload: bytes) -> "requests.Response":
+        return self._session.post(url, data=payload, headers=self.headers, verify=False)
+
+
 class MsfClient():
     def __init__(self, password: str, lhost: str, host: str = '127.0.0.1', port: int = 55553) -> None:
         self.logger = logging.getLogger("MsfClient")
         self.logger.info(f"Connecting to msfrpcd at {host}:{port}")
-        self.client = MsfRpcClient(password, host=host, port=port, ssl=True)
+        # pymetasploit3 1.0.6 reads the host from the `server` kwarg, not `host`.
+        self.client = _SharedSessionMsfRpcClient(password, server=host, port=port, ssl=True)
         self.lhost = lhost
 
         # create a new console, use only one
@@ -133,7 +154,7 @@ class MsfClient():
                 module._runopts[pkey] = pval
 
         if run_with_console:
-            output = self.console.run_module_with_output(module, payload=payload, timeout=180)
+            output = self._run_module_with_output(module, payload=payload, timeout=180)
 
             # print(output)
             self.logger.debug(output)
@@ -145,6 +166,78 @@ class MsfClient():
             self.wait_for_job(job_id)
 
             return None
+
+    def _run_module_with_output(self, module: Any, payload: Any = None, timeout: int = 300) -> str:
+        """Run a module on the shared console and collect its output.
+
+        Re-implements pymetasploit3's ``MsfConsole.run_module_with_output`` so that
+        NASimEmu's patches live here rather than in a vendored fork:
+        - poll every 5 s instead of every 1 s,
+        - emit ``unset <opt>`` for options whose value is ``None`` (upstream would
+          emit ``set <opt> None``), which lets callers unset options via
+          ``forced_params`` (e.g. ``{'LHOST': None}``),
+        - wait until the console output stabilises (it is no longer busy and no new
+          data arrived) before returning, instead of stopping as soon as it idles once.
+        """
+        console = self.console
+
+        if console.is_busy():
+            raise MsfError(f'Console {console.cid} is busy')
+        console.read()  # clear the data buffer
+
+        opts = module.runoptions.copy()
+        if payload is None:
+            opts['DisablePayloadHandler'] = True
+
+        options_str = f'use {module.moduletype}/{module.modulename}\n'
+
+        # Set module params; a None value means "unset" rather than "set to None".
+        for key in opts.keys():
+            if opts[key] is not None:
+                options_str += f'set {key} {opts[key]}\n'
+            else:
+                options_str += f'unset {key}\n'
+
+        # Set payload params for exploit modules.
+        if module.moduletype == 'exploit':
+            opts['TARGET'] = module.target
+            options_str += f'set TARGET {module.target}\n'
+
+            if opts.get('DisablePayloadHandler'):
+                pass
+            elif isinstance(payload, PayloadModule):
+                if payload.modulename not in module.payloads:
+                    raise ValueError(f'Invalid payload ({payload.modulename}) for given target ({module.target}).')
+                options_str += f'set payload {payload.modulename}\n'
+                for pkey, pval in payload.runoptions.items():
+                    if pval is None or (isinstance(pval, str) and not pval):
+                        continue
+                    options_str += f'set {pkey} {pval}\n'
+            else:
+                raise ValueError('No valid PayloadModule provided for exploit execution.')
+
+        options_str += 'run -z'
+
+        # Wait for any previous activity to finish before writing.
+        while console.is_busy():
+            self.logger.debug("Console busy. Waiting...")
+            time.sleep(5)
+
+        console.write(options_str)
+
+        output = ''
+        old_data_len = -1
+        timer = 0
+        time.sleep(5)
+        while output == '' or console.is_busy() or old_data_len != len(output):
+            time.sleep(5)
+            old_data_len = len(output)
+            output += console.read()['data']
+            timer += 5
+            if timer > timeout:
+                break
+
+        return output
 
     def run_msf_command(self, cmd: str) -> str:
         self.logger.info(f"Executing msfconsole command: `{cmd}`")
