@@ -2,14 +2,12 @@ To set a custom environment or to use emulation, you have custom scenarios that 
 
 # Version
 
-NASimEmu can use 2 versions of scenario:
-- v1 : filename ends with .yaml (original NASim format with a few improvements)
-- v2 : filename ends with .v2.yaml (custom format, not compatible with NASim)
+NASimEmu loads scenarios in the V2 format; the filename has to end with `.v2.yaml`. It is a custom format that is not compatible with NASim and allows some variables to be random.
 
-The V2 format allows to have some variables to be random.
+The original NASim format (V1) is no longer supported since version 2.0.0.
 
-# V1 Scenario
-See the [original documentation](https://networkattacksimulator.readthedocs.io/en/latest/tutorials/scenarios.html) for the V1 scenarios.
+# Common fields
+The V2 format builds on the original NASim format, see the [original documentation](https://networkattacksimulator.readthedocs.io/en/latest/tutorials/scenarios.html).
 
 You can set :
 - subnet
@@ -44,59 +42,9 @@ You can set :
 - firewall
   - Set services that can communicate between 2 subnet with a list of service or [_all] to allow all services
 
-## Example
-
-```yaml
-subnets: [1]
-topology: [[ 1, 1],
-           [ 1, 1]]
-sensitive_hosts:
-  (1, 0): 100
-os:
-  - linux
-services:
-  - 21_proftpd
-  - 80_drupal
-processes:
-  - ~
-exploits:
-  e_21_proftpd:
-    service: 21_proftpd
-    os: linux
-    prob: 1.0
-    cost: 1
-    access: user
-  e_drupal:
-    service: 80_drupal
-    os: linux
-    prob: 1.0
-    cost: 1
-    access: user
-privilege_escalation:
-  pe_kernel:
-    process: ~
-    os: linux
-    prob: 1.0
-    cost: 1
-    access: root
-service_scan_cost: 1
-os_scan_cost: 1
-subnet_scan_cost: 1
-process_scan_cost: 1
-host_configurations:
-  (1, 0):
-    os: linux
-    services: [80_phpwiki]
-    processes: []
-firewall:
-  (0, 1): [_all]
-  (1, 0): [_all]
-step_limit: 1000
-```
-
 # V2 Scenario
 
-V2 scenario is an upgrade of V1 scenario adding some randomness to the generation.
+On top of the common fields, a V2 scenario adds some randomness to the generation.
 
 With this scenario, subnet can have variable size by setting the minimum and maximum number of hosts in the 'subnets' field (for example, 1-5 for 1 to 5 hosts).
 
