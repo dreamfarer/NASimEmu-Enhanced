@@ -1,1 +1,0 @@
-from .generated import AVAIL_GEN_BENCHMARKS as AVAIL_GEN_BENCHMARKS

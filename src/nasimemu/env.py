@@ -2,11 +2,10 @@ import gymnasium as gym, random
 from typing import Any
 import numpy as np
 from numpy.typing import NDArray
-from nasimemu import nasim, env_utils
+from nasimemu import env_utils
 
 from nasimemu.nasim.envs.action import Action, Exploit, PrivilegeEscalation, ServiceScan, OSScan, SubnetScan, ProcessScan, NoOp
 from nasimemu.nasim.scenarios import load_scenario
-from nasimemu.nasim.scenarios.benchmark.generated import AVAIL_GEN_BENCHMARKS
 
 from nasimemu.nasim.envs.environment import NASimEnv
 from nasimemu.nasim.envs.host_vector import HostVector
@@ -14,26 +13,6 @@ from nasimemu.env_emu import EmulatedNASimEnv
 
 class TerminalAction():
     pass
-
-# with deterministic exploits & privescs
-class NASimScenarioGenerator(nasim.scenarios.generator.ScenarioGenerator):
-    def _generate_exploits(self, num_exploits: int, exploit_cost: float, exploit_probs: Any) -> None:
-        rng = np.random.get_state()
-
-        np.random.seed(12345)
-        exploits = super()._generate_exploits(num_exploits, exploit_cost, exploit_probs)
-        np.random.set_state(rng)
-
-        return exploits
-
-    def _generate_privescs(self, num_privesc: int, privesc_cost: float, privesc_probs: Any) -> None:
-        rng = np.random.get_state()
-
-        np.random.seed(12346)
-        privescs = super()._generate_privescs(num_privesc, privesc_cost, privesc_probs)
-        np.random.set_state(rng)
-
-        return privescs
 
 class PartiallyObservableWrapper():
     def reset(self, s: NDArray[Any]) -> NDArray[Any]:
@@ -88,15 +67,7 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         else:
             scenario_name = self.scenario_name
 
-        if scenario_name.endswith(".yaml"):        # static scenario
-            scenario = load_scenario(scenario_name)
-
-        else:   # generated scenario
-            scenario_params = AVAIL_GEN_BENCHMARKS[scenario_name]
-            scenario_params['step_limit'] = None
-
-            generator = NASimScenarioGenerator()
-            scenario = generator.generate(randomize_subnet_sizes=True, **scenario_params)
+        scenario = load_scenario(scenario_name)
 
         if self.emulate:
             self.env: NASimEnv = EmulatedNASimEnv(scenario=scenario)
