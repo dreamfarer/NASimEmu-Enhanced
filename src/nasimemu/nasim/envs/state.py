@@ -67,25 +67,6 @@ class State:
         return network.reset(state)
 
     @classmethod
-    def generate_random_initial_state(cls, network: "Network") -> "State":
-        h0 = network.hosts[(1, 0)]
-        h0_vector = HostVector.vectorize_random(
-            h0, network.address_space_bounds
-        )
-        tensor = np.zeros(
-            (len(network.hosts), h0_vector.state_size),
-            dtype=np.float32
-        )
-        for host_addr, host in network.hosts.items():
-            host_num = network.host_num_map[host_addr]
-            HostVector.vectorize_random(
-                host, network.address_space_bounds, tensor[host_num]
-            )
-        state = cls(tensor, network.host_num_map)
-        # ensure host state set correctly
-        return network.reset(state)
-
-    @classmethod
     def from_numpy(
         cls,
         s_array: NDArray[Any],
@@ -253,30 +234,8 @@ class State:
     ) -> bool:
         return self.get_host(host_addr).access >= access_level
 
-    def set_host_compromised(self, host_addr: Address) -> None:
-        self.get_host(host_addr).compromised = True
-
     def set_host_reachable(self, host_addr: Address) -> None:
         self.get_host(host_addr).reachable = True
-
-    def set_host_discovered(self, host_addr: Address) -> None:
-        self.get_host(host_addr).discovered = True
-
-    def get_host_value(self, host_address: Any) -> Any:
-        return self.hosts[host_address].get_value()
-
-    def host_is_running_service(self, host_addr: Address, service: str) -> bool:
-        return self.get_host(host_addr).is_running_service(service)
-
-    def host_is_running_os(self, host_addr: Address, os: str) -> bool:
-        return self.get_host(host_addr).is_running_os(os)
-
-    def get_total_host_value(self) -> float:
-        total_value: float = 0
-        for host_addr in self.host_num_map:
-            host = self.get_host(host_addr)
-            total_value += host.value
-        return total_value
 
     def state_size(self) -> int:
         return self.tensor.size

@@ -77,12 +77,6 @@ class NASimEnv(gym.Env[Any, Any]):
 
         self.action_space = ParameterisedActionSpace(self.scenario)
 
-        # obs_shape = self.last_obs.shape()
-        # obs_low, obs_high = Observation.get_space_bounds(self.scenario)
-        # self.observation_space = spaces.Box(
-        #     low=obs_low, high=obs_high, shape=obs_shape
-        # )
-
         self.steps = 0
 
     def reset(
@@ -194,20 +188,6 @@ class NASimEnv(gym.Env[Any, Any]):
         reward = action_obs.value - action.cost
         return next_state, obs, reward, done, action_obs.info()
 
-    def generate_random_initial_state(self) -> State:
-        """Generates a random initial state for environment.
-
-        This only randomizes the host configurations (os, services)
-        using a uniform distribution, so may result in networks where
-        it is not possible to reach the goal.
-
-        Returns
-        -------
-        State
-            A random initial state
-        """
-        return State.generate_random_initial_state(self.network)
-
     def generate_initial_state(self) -> State:
         """Generate the initial state for the environment.
 
@@ -297,54 +277,6 @@ class NASimEnv(gym.Env[Any, Any]):
         else:
             print("Please choose correct render mode from :"
                   f"{self.metadata['rendering.modes']}")
-
-    def render_action(self, action: int | Action) -> None:
-        """Renders human readable version of action.
-
-        This is mainly useful for getting a text description of the action
-        that corresponds to a given integer.
-
-        Parameters
-        ----------
-        action : int or Action
-            the action to render
-        """
-        if isinstance(action, int):
-            action = self.action_space.actions[action]
-        print(action)
-
-    def get_minimum_actions(self) -> int:
-        """Get the minimum number of actions required to reach the goal.
-
-        That is minimum number of actions to exploit all sensitive hosts on
-        the network starting from the initial state
-
-        Returns
-        -------
-        int
-            minumum possible actions to reach goal
-        """
-        return self.network.get_minimal_steps()
-
-    def get_score_upper_bound(self) -> float:
-        """Get the theoretical upper bound for total reward for scenario.
-
-        The theoretical upper bound score is where the agent exploits only a
-        single host in each subnet that is required to reach sensitive hosts
-        along the shortest bath in network graph, and exploits the two
-        sensitive hosts (i.e. the minial steps). Assuming action cost of 1 and
-        each sensitive host is exploitable from any other connected subnet
-        (which may not be true, hence being an upper bound).
-
-        Returns
-        -------
-        float
-            theoretical max score
-        """
-        max_reward = self.network.get_total_sensitive_host_value()
-        max_reward += self.network.get_total_discovery_value()
-        max_reward -= self.network.get_minimal_steps()
-        return max_reward
 
     def goal_reached(self, state: State | None = None) -> bool:
         """Check if the state is the goal state.

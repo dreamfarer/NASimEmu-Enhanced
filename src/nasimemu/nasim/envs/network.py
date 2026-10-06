@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from .action import Action, ActionResult, Exploit
-from .utils import get_minimal_steps_to_goal, AccessLevel, Address
+from .utils import AccessLevel, Address
 
 if TYPE_CHECKING:
     from nasimemu.nasim.scenarios.scenario import Scenario
@@ -164,9 +164,6 @@ class Network:
     def get_sensitive_hosts(self) -> list[Address]:
         return self.sensitive_addresses
 
-    def is_sensitive_host(self, host_address: Address) -> bool:
-        return host_address in self.sensitive_addresses
-
     def subnets_connected(self, subnet_1: int, subnet_2: int) -> bool:
         return bool(self.topology[subnet_1][subnet_2] == 1)
 
@@ -230,31 +227,11 @@ class Network:
     def subnet_public(self, subnet: int) -> bool:
         return bool(self.topology[subnet][INTERNET] == 1)
 
-    def get_number_of_subnets(self) -> int:
-        return len(self.subnets)
-
     def all_sensitive_hosts_compromised(self, state: "State") -> bool:
         for host_addr in self.sensitive_addresses:
             if not state.host_has_access(host_addr, AccessLevel.ROOT):
                 return False
         return True
-
-    def get_total_sensitive_host_value(self) -> float:
-        total: float = 0
-        for host_value in self.sensitive_hosts.values():
-            total += host_value
-        return total
-
-    def get_total_discovery_value(self) -> float:
-        total: float = 0
-        for host in self.hosts.values():
-            total += host.discovery_value
-        return total
-
-    def get_minimal_steps(self) -> int:
-        return get_minimal_steps_to_goal(
-            self.topology, self.sensitive_addresses
-        )
 
     def __str__(self) -> str:
         output = "\n--- Network ---\n"

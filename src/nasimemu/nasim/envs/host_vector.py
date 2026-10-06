@@ -122,28 +122,6 @@ class HostVector:
             vector[cls._get_process_idx(proc_num)] = int(proc_val) # TODO we should determine process by proc_key, not proc_num
         return cls(vector)
 
-    @classmethod
-    def vectorize_random(
-        cls,
-        host: "Host",
-        address_space_bounds: tuple[int, int] | None,
-        vector: NDArray[Any] | None = None
-    ) -> "HostVector":
-        hvec = cls.vectorize(host, address_space_bounds, vector)
-        # random variables
-        for srv_num in cls.service_idx_map.values():
-            srv_val = np.random.randint(0, 2)
-            hvec.vector[cls._get_service_idx(srv_num)] = srv_val
-
-        chosen_os = np.random.choice(list(cls.os_idx_map.values()))
-        for os_num in cls.os_idx_map.values():
-            hvec.vector[cls._get_os_idx(os_num)] = int(os_num == chosen_os)
-
-        for proc_num in cls.process_idx_map.values():
-            proc_val = np.random.randint(0, 2)
-            hvec.vector[cls._get_process_idx(proc_num)] = proc_val
-        return hvec
-
     @property
     def compromised(self) -> float:
         return cast(float, self.vector[self._compromised_idx])

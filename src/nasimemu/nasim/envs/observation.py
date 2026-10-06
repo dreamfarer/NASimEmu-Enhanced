@@ -3,12 +3,10 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy.typing import NDArray
 
-from .utils import AccessLevel
 from .action import ActionResult
 from .host_vector import HostVector
 
 if TYPE_CHECKING:
-    from nasimemu.nasim.scenarios.scenario import Scenario
     from .state import State
 
 
@@ -67,25 +65,6 @@ class Observation:
         self.aux_row = -1
         self.tensor: NDArray[Any] = np.zeros(self.obs_shape, dtype=np.float32)
 
-    @staticmethod
-    def get_space_bounds(scenario: "Scenario") -> tuple[float, float]:
-        value_bounds = scenario.host_value_bounds
-        discovery_bounds = scenario.host_discovery_value_bounds
-        obs_low = min(
-            0,
-            value_bounds[0],
-            discovery_bounds[0]
-        )
-        obs_high = max(
-            1,
-            value_bounds[1],
-            discovery_bounds[1],
-            AccessLevel.ROOT,
-            len(scenario.subnets),
-            max(scenario.subnets)
-        )
-        return (obs_low, obs_high)
-
     @classmethod
     def from_numpy(
         cls, o_array: NDArray[Any], state_shape: tuple[int, ...]
@@ -108,12 +87,6 @@ class Observation:
         self.tensor[self.aux_row][self._perm_error_idx] = perm_err
         undef_err = int(action_result.undefined_error)
         self.tensor[self.aux_row][self._undef_error_idx] = undef_err
-
-    def from_state_and_action(
-        self, state: "State", action_result: ActionResult
-    ) -> None:
-        self.from_state(state)
-        self.from_action_result(action_result)
 
     def update_from_host(
         self, host_idx: int, host_obs_vector: NDArray[Any]
