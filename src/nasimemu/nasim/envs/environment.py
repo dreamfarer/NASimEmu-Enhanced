@@ -5,15 +5,14 @@ The NASimEnv class is the main interface for agents interacting with NASim.
 from typing import TYPE_CHECKING, Any
 
 import gymnasium as gym
-import numpy as np
 from numpy.typing import NDArray
 from gymnasium import spaces
 
 from .state import State
-from .render import Episode, Viewer
+from .render import Viewer
 from .network import Network
 from .observation import Observation
-from .action import Action, FlatActionSpace, ParameterisedActionSpace
+from .action import Action, ParameterisedActionSpace
 
 if TYPE_CHECKING:
     from nasimemu.nasim.scenarios.scenario import Scenario
@@ -32,18 +31,13 @@ class NASimEnv(gym.Env[Any, Any]):
         the environment scenario name
     scenario : Scenario
         Scenario object, defining the properties of the environment
-    action_space : FlatActionSpace or ParameterisedActionSpace
-        Action space for environment.
-        If *flat_action=True* then this is a discrete action space (which
-        subclasses gym.spaces.Discrete), so each action is represented by an
-        integer.
-        If *flat_action=False* then this is a parameterised action space (which
-        subclasses gym.spaces.MultiDiscrete), so each action is represented
-        using a list of parameters.
+    action_space : ParameterisedActionSpace
+        Action space for environment. This is a parameterised action space
+        (which subclasses gym.spaces.MultiDiscrete), so each action is
+        represented using a list of parameters.
     observation_space : gym.spaces.Box
-        observation space for environment.
-        If *flat_obs=True* then observations are represented by a 1D vector,
-        otherwise observations are represented as a 2D matrix.
+        observation space for environment. Observations are represented as
+        a 2D matrix.
     current_state : State
         the current state of the environment
     last_obs : Observation
@@ -55,16 +49,14 @@ class NASimEnv(gym.Env[Any, Any]):
     metadata = {'rendering.modes': ["readable"]}
     reward_range = (-float('inf'), float('inf'))
 
-    action_space: FlatActionSpace | ParameterisedActionSpace
+    action_space: ParameterisedActionSpace
     observation_space: spaces.Box | None = None  # type: ignore[assignment]  # no observation space is defined yet
     current_state: State
     last_obs: Observation | None = None
 
     def __init__(self,
                  scenario: "Scenario",
-                 fully_obs: bool = False,
-                 flat_actions: bool = True,
-                 flat_obs: bool = True) -> None:
+                 fully_obs: bool = False) -> None:
         """
         Parameters
         ----------
@@ -73,33 +65,19 @@ class NASimEnv(gym.Env[Any, Any]):
         fully_obs : bool, optional
             The observability mode of environment, if True then uses fully
             observable mode, otherwise is partially observable (default=False)
-        flat_actions : bool, optional
-            If true then uses a flat action space, otherwise will uses a
-            parameterised action space (default=True).
-        flat_obs : bool, optional
-            If true then uses a 1D observation space, otherwise uses a 2D
-            observation space (default=True)
         """
         self.name = scenario.name
         self.scenario = scenario
         self.fully_obs = fully_obs
-        self.flat_actions = flat_actions
-        self.flat_obs = flat_obs
 
         self.network = Network(scenario)
         self.current_state = State.generate_initial_state(self.network)
         self._renderer: Viewer | None = None
         # self.reset()
 
-        if self.flat_actions:
-            self.action_space = FlatActionSpace(self.scenario)
-        else:
-            self.action_space = ParameterisedActionSpace(self.scenario)
+        self.action_space = ParameterisedActionSpace(self.scenario)
 
-        # if self.flat_obs:
-        #     obs_shape = self.last_obs.shape_flat()
-        # else:
-        #     obs_shape = self.last_obs.shape()
+        # obs_shape = self.last_obs.shape()
         # obs_low, obs_high = Observation.get_space_bounds(self.scenario)
         # self.observation_space = spaces.Box(
         #     low=obs_low, high=obs_high, shape=obs_shape
@@ -128,8 +106,6 @@ class NASimEnv(gym.Env[Any, Any]):
             self.fully_obs
         )
 
-        if self.flat_obs:
-            return self.last_obs.numpy_flat(), {}
         return self.last_obs.numpy(), {}
 
     def step(
@@ -142,9 +118,8 @@ class NASimEnv(gym.Env[Any, Any]):
         Parameters
         ----------
         action : Action or int or list or NumpyArray
-            Action to perform. If not Action object, then if using
-            flat actions this should be an int and if using non-flat actions
-            this should be an indexable array.
+            Action to perform. If not Action object, then this should be
+            an indexable array.
 
         Returns
         -------
@@ -167,10 +142,7 @@ class NASimEnv(gym.Env[Any, Any]):
         self.current_state = next_state
         self.last_obs = obs
 
-        if self.flat_obs:
-            obs_array = obs.numpy_flat()
-        else:
-            obs_array = obs.numpy()
+        obs_array = obs.numpy()
 
         self.steps += 1
 
@@ -192,9 +164,8 @@ class NASimEnv(gym.Env[Any, Any]):
         state : State
             The state to perform the action in
         action : Action, int, list, NumpyArray
-            Action to perform. If not Action object, then if using
-            flat actions this should be an int and if using non-flat actions
-            this should be an indexable array.
+            Action to perform. If not Action object, then this should be
+            an indexable array.
 
         Returns
         -------
@@ -342,44 +313,6 @@ class NASimEnv(gym.Env[Any, Any]):
             action = self.action_space.actions[action]
         print(action)
 
-    def render_episode(
-        self, episode: Episode, width: int = 7, height: int = 7
-    ) -> None:
-        """Render an episode as sequence of network graphs, where an episode
-        is a sequence of (state, action, reward, done) tuples generated from
-        interactions with environment.
-
-        Parameters
-        ----------
-        episode : list
-            list of (State, Action, reward, done) tuples
-        width : int
-            width of GUI window
-        height : int
-            height of GUI window
-        """
-        if self._renderer is None:
-            self._renderer = Viewer(self.network)
-        self._renderer.render_episode(episode, width, height)
-
-    def render_network_graph(self, ax: Any = None, show: bool = False) -> None:
-        """Render a plot of network as a graph with hosts as nodes arranged
-        into subnets and showing connections between subnets. Renders current
-        state of network.
-
-        Parameters
-        ----------
-        ax : Axes
-            matplotlib axis to plot graph on, or None to plot on new axis
-        show : bool
-            whether to display plot, or simply setup plot and showing plot
-            can be handled elsewhere by user
-        """
-        if self._renderer is None:
-            self._renderer = Viewer(self.network)
-        state = self.current_state
-        self._renderer.render_graph(state, ax, show)
-
     def get_minimum_actions(self) -> int:
         """Get the minimum number of actions required to reach the goal.
 
@@ -392,26 +325,6 @@ class NASimEnv(gym.Env[Any, Any]):
             minumum possible actions to reach goal
         """
         return self.network.get_minimal_steps()
-
-    def get_action_mask(self) -> NDArray[np.int64]:
-        """Get a vector mask for valid actions.
-
-        Returns
-        -------
-        ndarray
-            numpy vector of 1's and 0's, one for each action. Where an
-            index will be 1 if action is valid given current state, or
-            0 if action is invalid.
-        """
-        assert isinstance(self.action_space, FlatActionSpace), \
-            "Can only use action mask function when using flat action space"
-        num_actions = int(self.action_space.n)
-        mask = np.zeros(num_actions, dtype=np.int64)
-        for a_idx in range(num_actions):
-            action = self.action_space.get_action(a_idx)
-            if self.current_state.host_discovered(action.target):
-                mask[a_idx] = 1
-        return mask
 
     def get_score_upper_bound(self) -> float:
         """Get the theoretical upper bound for total reward for scenario.
@@ -457,8 +370,6 @@ class NASimEnv(gym.Env[Any, Any]):
         output = [
             "NASimEnv:",
             f"name={self.name}",
-            f"fully_obs={self.fully_obs}",
-            f"flat_actions={self.flat_actions}",
-            f"flat_obs={self.flat_obs}"
+            f"fully_obs={self.fully_obs}"
         ]
         return "\n  ".join(output)

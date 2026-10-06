@@ -1,8 +1,7 @@
 import enum
-from typing import Any, Deque, List, Sequence, Tuple
+from typing import Any, Sequence, Tuple
 
 import numpy as np
-from collections import deque
 from itertools import permutations
 
 INTERNET = 0
@@ -107,42 +106,3 @@ def get_minimal_steps_to_goal(
         shortest = min(shortest, pm_sum)
 
     return shortest
-
-
-def min_subnet_depth(topology: Any) -> List[float]:
-    """Find the minumum depth of each subnet in the network graph in terms of steps
-    from an exposed subnet to each subnet
-
-    Parameters
-    ----------
-    topology : 2D matrix
-        An adjacency matrix representing the network, with first subnet
-        representing the internet (i.e. exposed)
-
-    Returns
-    -------
-    depths : list
-        depth of each subnet ordered by subnet index in topology
-    """
-    num_subnets = len(topology)
-
-    assert len(topology[0]) == num_subnets
-
-    depths: List[float] = []
-    Q: Deque[int] = deque()
-    for subnet in range(num_subnets):
-        if topology[subnet][INTERNET] == 1:
-            depths.append(0)
-            Q.appendleft(subnet)
-        else:
-            depths.append(float('inf'))
-
-    while len(Q) > 0:
-        parent = Q.pop()
-        for child in range(num_subnets):
-            if topology[parent][child] == 1:
-                # child is connected to parent
-                if depths[child] > depths[parent] + 1:
-                    depths[child] = depths[parent] + 1
-                    Q.appendleft(child)
-    return depths

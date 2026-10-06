@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from .action import Action, ActionResult, Exploit
-from .utils import get_minimal_steps_to_goal, min_subnet_depth, AccessLevel, Address
+from .utils import get_minimal_steps_to_goal, AccessLevel, Address
 
 if TYPE_CHECKING:
     from nasimemu.nasim.scenarios.scenario import Scenario
@@ -255,9 +255,6 @@ class Network:
         return get_minimal_steps_to_goal(
             self.topology, self.sensitive_addresses
         )
-
-    def get_subnet_depths(self) -> list[float]:
-        return min_subnet_depth(self.topology)
 
     def __str__(self) -> str:
         output = "\n--- Network ---\n"
