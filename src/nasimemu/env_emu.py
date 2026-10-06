@@ -412,27 +412,3 @@ class EmulatedNASimEnv(NASimEnv):
         s, i = self.emulated_network.translate_action(a)
 
         return s, 0., False, False, i  # s, r, terminated, truncated, i
-
-if __name__ == '__main__':
-    # useful for testing
-    # ------------------
-
-    from nasimemu import nasim
-    from nasimemu.nasim.scenarios import load_scenario
-    from nasimemu.nasim.envs.action import ServiceScan
-
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger('urllib3').setLevel(logging.INFO)
-
-    scenario = load_scenario("scenarios/test_scenario.yaml")
-    env = EmulatedNASimEnv(scenario=scenario)
-
-    # a = nasim.envs.action.SubnetScan(target=(1,0), cost=1.0)
-    # a = nasim.envs.action.OSScan(target=(1,0), cost=1.0)
-    # a = nasim.envs.action.Exploit(name='e_proftpd', service='proftpd', target=(1,0), cost=1.0)
-    # a = nasim.envs.action.Exploit(name='e_drupal', service='drupal', target=(1,0), cost=1.0)
-    # a = nasim.envs.action.PrivilegeEscalation(name='pe_kernel', process=None, access=1, target=(1,0), cost=1.0)
-    a = ServiceScan(target=(1,0), cost=1.0)
-
-    s, r, terminated, truncated, i = env.step(a)
-    print(s, r, terminated, truncated, i)

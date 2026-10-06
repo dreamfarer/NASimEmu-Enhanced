@@ -2,17 +2,11 @@ import os
 from typing import Any
 
 import yaml
-import os.path as osp
-
-
-SCENARIO_DIR = osp.dirname(osp.abspath(__file__))
 
 # default subnet address for internet
 INTERNET = 0
 
 # Constants
-NUM_ACCESS_LEVELS = 2
-NO_ACCESS = 0
 USER_ACCESS = 1
 ROOT_ACCESS = 2
 DEFAULT_HOST_VALUE = 0
@@ -34,7 +28,6 @@ HOST_CONFIGS = "host_configurations"
 FIREWALL = "firewall"
 HOSTS = "host"
 STEP_LIMIT = "step_limit"
-ACCESS_LEVELS = "access_levels"
 
 # scenario exploit keys
 EXPLOIT_SERVICE = "service"

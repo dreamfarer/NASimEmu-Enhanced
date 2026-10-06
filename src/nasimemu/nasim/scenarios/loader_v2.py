@@ -11,26 +11,6 @@ from nasimemu.nasim.scenarios.scenario import Address, Scenario
 from nasimemu.nasim.scenarios.host import Host
 
 
-# dictionary of valid key names and value types for config file
-VALID_CONFIG_KEYS: dict[str, type | tuple[type, ...]] = {
-    u.SUBNETS: list,
-    u.TOPOLOGY: list,
-    u.SENSITIVE_HOSTS: dict,
-    u.OS: list,
-    u.SERVICES: list,
-    u.PROCESSES: list,
-    u.EXPLOITS: dict,
-    u.PRIVESCS: dict,
-    u.SERVICE_SCAN_COST: (int, float),
-    u.SUBNET_SCAN_COST: (int, float),
-    u.OS_SCAN_COST: (int, float),
-    u.PROCESS_SCAN_COST: (int, float),
-    u.HOST_CONFIGS: dict,
-    u.FIREWALL: dict
-}
-
-OPTIONAL_CONFIG_KEYS: dict[str, type | tuple[type, ...]] = {u.STEP_LIMIT: int}
-
 VALID_ACCESS_VALUES = ["user", "root", u.USER_ACCESS, u.ROOT_ACCESS]
 ACCESS_LEVEL_MAP = {
     "user": u.USER_ACCESS,
@@ -91,7 +71,6 @@ class ScenarioLoaderV2:
         if name is None:
             name = u.get_file_name(file_path)
         self.name = name
-        # self._check_scenario_sections_valid()
 
         self._parse_subnets()
         self._parse_topology()
@@ -131,29 +110,6 @@ class ScenarioLoaderV2:
         scenario_dict["address_space_bounds"] = self.address_space_bounds
 
         return Scenario(scenario_dict, name=self.name)
-
-    def _check_scenario_sections_valid(self) -> None:
-        """Checks if scenario dictionary contains all required sections and
-        they are valid type.
-        """
-        # 0. check correct number of keys
-        assert len(self.yaml_dict) >= len(VALID_CONFIG_KEYS), \
-            (f"Too few config file keys: {len(self.yaml_dict)} "
-             f"< {len(VALID_CONFIG_KEYS)}")
-
-        # 1. check keys are valid and values are correct type
-        for k, v in self.yaml_dict.items():
-            assert k in VALID_CONFIG_KEYS or k in OPTIONAL_CONFIG_KEYS, \
-                f"{k} not a valid config file key"
-
-            if k in VALID_CONFIG_KEYS:
-                expected_type = VALID_CONFIG_KEYS[k]
-            else:
-                expected_type = OPTIONAL_CONFIG_KEYS[k]
-
-            assert isinstance(v, expected_type), \
-                (f"{v} invalid type for config file key '{k}': {type(v)}"
-                 f" != {expected_type}")
 
     def _parse_subnets(self) -> None:
         subnets = self.yaml_dict[u.SUBNETS]
@@ -246,65 +202,9 @@ class ScenarioLoaderV2:
                 if random.random() < sensitive_prob:
                     self.sensitive_hosts[(s_id, host_id)] = 100.   # fixed sensitive value
 
-        # self._validate_sensitive_hosts(sensitive_hosts)
-
         # self.sensitive_hosts = dict()
         # for address, value in sensitive_hosts.items():
         #     self.sensitive_hosts[eval(address)] = value
-
-    def _validate_sensitive_hosts(self, sensitive_hosts: dict[str, Any]) -> None:
-        # check sensitive_hosts is valid dict of (subnet, id) : value
-        assert len(sensitive_hosts) > 0, \
-            ("Number of sensitive hosts must be >= 1: "
-             f"{len(sensitive_hosts)} not >= 1")
-
-        assert len(sensitive_hosts) <= self.num_hosts, \
-            ("Number of sensitive hosts must be <= total number of "
-             f"hosts: {len(sensitive_hosts)} not <= {self.num_hosts}")
-
-        # sensitive hosts must be valid address
-        for address, value in sensitive_hosts.items():
-            subnet_id, host_id = eval(address)
-            assert self._is_valid_subnet_ID(subnet_id), \
-                ("Invalid sensitive host tuple: subnet_id must be a valid"
-                 f" subnet: {subnet_id} != non-negative int less than "
-                 f"{len(self.subnets) + 1}")
-
-            assert self._is_valid_host_address(subnet_id, host_id), \
-                ("Invalid sensitive host tuple: host_id must be a valid"
-                 f" int: {host_id} != non-negative int less than"
-                 f" {self.subnets[subnet_id]}")
-
-            assert isinstance(value, (float, int)) and value > 0, \
-                (f"Invalid sensitive host tuple: invalid value: {value}"
-                 f" != a positive int or float")
-
-        # 5.c sensitive hosts must not contain duplicate addresses
-        for i, m in enumerate(sensitive_hosts.keys()):
-            h1_addr = eval(m)
-            for j, n in enumerate(sensitive_hosts.keys()):
-                if i == j:
-                    continue
-                h2_addr = eval(n)
-                assert h1_addr != h2_addr, \
-                    ("Sensitive hosts list must not contain duplicate host "
-                     f"addresses: {m} == {n}")
-
-    def _is_valid_subnet_ID(self, subnet_ID: Any) -> bool:
-        if type(subnet_ID) is not int \
-           or subnet_ID < 1 \
-           or subnet_ID > len(self.subnets):
-            return False
-        return True
-
-    def _is_valid_host_address(self, subnet_ID: Any, host_ID: Any) -> bool:
-        if not self._is_valid_subnet_ID(subnet_ID):
-            return False
-        if type(host_ID) is not int \
-           or host_ID < 0 \
-           or host_ID >= self.subnets[subnet_ID]:
-            return False
-        return True
 
     def _parse_exploits(self) -> None:
         exploits = self.yaml_dict[u.EXPLOITS]

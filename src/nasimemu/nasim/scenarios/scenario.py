@@ -1,5 +1,4 @@
-import math, numpy as np
-from pprint import pprint
+import numpy as np
 from collections.abc import Collection
 from typing import Any, cast
 
@@ -106,10 +105,6 @@ class Scenario:
     @property
     def num_processes(self) -> int:
         return len(self.processes)
-
-    @property
-    def access_levels(self) -> int:
-        return u.ROOT_ACCESS
 
     @property
     def exploits(self) -> dict[str, dict[str, Any]]:
@@ -238,94 +233,3 @@ class Scenario:
 
         else:
             return len(self.subnets), max(self.subnets)
-
-    @property
-    def host_value_bounds(self) -> tuple[float, float]:
-        """The min and max values of host in scenario
-
-        Returns
-        -------
-        (float, float)
-            (min, max) tuple of host values
-        """
-        min_value = math.inf
-        max_value = -math.inf
-        for host in self.hosts.values():
-            min_value = min(min_value, host.value)
-            max_value = max(max_value, host.value)
-        return (min_value, max_value)
-
-    @property
-    def host_discovery_value_bounds(self) -> tuple[float, float]:
-        """The min and max discovery values of hosts in scenario
-
-        Returns
-        -------
-        (float, float)
-            (min, max) tuple of host values
-        """
-        min_value = math.inf
-        max_value = -math.inf
-        for host in self.hosts.values():
-            min_value = min(min_value, host.discovery_value)
-            max_value = max(max_value, host.discovery_value)
-        return (min_value, max_value)
-
-    def display(self) -> None:
-        pprint(self.scenario_dict)
-
-    def get_action_space_size(self) -> int:
-        num_exploits = len(self.exploits)
-        num_privescs = len(self.privescs)
-        # OSScan, ServiceScan, SubnetScan, ProcessScan
-        num_scans = 4
-        actions_per_host = num_exploits + num_privescs + num_scans
-        return len(self.hosts) * actions_per_host
-
-    def get_state_space_size(self) -> int:
-        # compromised, reachable, discovered
-        host_aux_bin_features = 3
-        num_bin_features = (
-            host_aux_bin_features
-            + self.num_os
-            + self.num_services
-            + self.num_processes
-        )
-        # access
-        num_tri_features = 1
-        host_states: int = 2**num_bin_features * 3**num_tri_features
-        return len(self.hosts) * host_states
-
-    def get_state_dims(self) -> tuple[int, int]:
-        # compromised, reachable, discovered, value, discovery_value, access
-        host_aux_features = 6
-        host_state_size = (
-            self.address_space_bounds[0]
-            + self.address_space_bounds[1]
-            + host_aux_features
-            + self.num_os
-            + self.num_services
-            + self.num_processes
-        )
-        return len(self.hosts), host_state_size
-
-    def get_observation_dims(self) -> tuple[int, int]:
-        state_dims = self.get_state_dims()
-        return state_dims[0]+1, state_dims[1]
-
-    def get_description(self) -> dict[str, Any]:
-        description = {
-            "Name": self.name,
-            "Subnets": len(self.subnets),
-            "Hosts": len(self.hosts),
-            "OS": self.num_os,
-            "Services": self.num_services,
-            "Processes": self.num_processes,
-            "Exploits": len(self.exploits),
-            "PrivEscs": len(self.privescs),
-            "Actions": self.get_action_space_size(),
-            "Observation Dims": self.get_observation_dims(),
-            "States": self.get_state_space_size(),
-            "Step Limit": self.step_limit
-        }
-        return description
