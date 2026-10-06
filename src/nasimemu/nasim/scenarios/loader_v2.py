@@ -130,9 +130,7 @@ class ScenarioLoaderV2:
         scenario_dict[u.STEP_LIMIT] = self.step_limit
         scenario_dict["address_space_bounds"] = self.address_space_bounds
 
-        return Scenario(
-            scenario_dict, name=self.name, generated=False
-        )
+        return Scenario(scenario_dict, name=self.name)
 
     def _check_scenario_sections_valid(self) -> None:
         """Checks if scenario dictionary contains all required sections and

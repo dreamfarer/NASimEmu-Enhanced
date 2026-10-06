@@ -12,11 +12,10 @@ Address = tuple[int, int]
 
 class Scenario:
 
-    def __init__(self, scenario_dict: dict[str, Any], name: str | None = None, generated: bool = False, permute_subnets: bool = True) -> None:
+    def __init__(self, scenario_dict: dict[str, Any], name: str | None = None, permute_subnets: bool = True) -> None:
 
         self.scenario_dict = scenario_dict
         self.name = name
-        self.generated = generated
         self._e_map: dict[str, dict[str | None, dict[str, Any]]] | None = None
         self._pe_map: dict[str, dict[str | None, dict[str, Any]]] | None = None
 
@@ -317,7 +316,6 @@ class Scenario:
     def get_description(self) -> dict[str, Any]:
         description = {
             "Name": self.name,
-            "Type": "generated" if self.generated else "static",
             "Subnets": len(self.subnets),
             "Hosts": len(self.hosts),
             "OS": self.num_os,
