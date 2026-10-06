@@ -2,11 +2,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .action import Action, ActionResult, Exploit
-from .utils import AccessLevel, Address
+from ..actions import Action, ActionResult, Exploit
+from ..utils import AccessLevel, Address
 
 if TYPE_CHECKING:
-    from nasimemu.nasim.scenarios.scenario import Scenario
+    from nasimemu_enhanced.scenarios.scenario import Scenario
     from .state import State
 
 # column in topology adjacency matrix that represents connection between
@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 INTERNET = 0
 
 
-class Network:
-    """A computer network """
+class SimulationNetwork:
+    """A computer network."""
 
     def __init__(self, scenario: "Scenario") -> None:
         self.hosts = scenario.hosts
@@ -29,7 +29,7 @@ class Network:
         self.sensitive_hosts = scenario.sensitive_hosts
 
     def reset(self, state: "State") -> "State":
-        """Reset the network state to initial state """
+        """Reset the network state to initial state."""
         next_state = state.copy()
         for host_addr in self.address_space:
             host = next_state.get_host(host_addr)
@@ -44,8 +44,8 @@ class Network:
     ) -> tuple["State", ActionResult]:
         """Perform the given Action against the network.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         state : State
             the current state
         action : Action
@@ -151,8 +151,9 @@ class Network:
     def _update_reachable(
         self, state: "State", compromised_addr: Address
     ) -> None:
-        """Updates the reachable status of hosts on network, based on current
-        state and newly exploited host
+        """Update the reachable status of hosts, based on state and exploit.
+
+        Uses the current state and the newly exploited host.
         """
         comp_subnet = compromised_addr[0]
         for addr in self.address_space:
@@ -186,7 +187,7 @@ class Network:
     def has_required_remote_permission(
         self, state: "State", action: Action
     ) -> bool:
-        """Checks attacker has necessary permissions for remote action """
+        """Check attacker has necessary permissions for remote action."""
         if self.subnet_public(action.target[0]):
             return True
 
@@ -208,9 +209,10 @@ class Network:
     def traffic_permitted(
         self, state: "State", host_addr: Address, service: str
     ) -> bool:
-        """Checks whether the subnet and host firewalls permits traffic to a
-        given host and service, based on current set of compromised hosts on
-        network.
+        """Check whether the firewalls permit traffic to a host and service.
+
+        Based on the subnet and host firewalls and the current set of
+        compromised hosts on the network.
         """
         for src_addr in self.address_space:
             if not state.host_compromised(src_addr) and \

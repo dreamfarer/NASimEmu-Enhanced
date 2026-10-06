@@ -1,1 +1,1 @@
-For each scenario, there is a `*.yaml` file, representing the nasim scenario, `*.vagrant` file for vagrant and `*.rsc` file for router (routerboard script). These are generated with `python -m nasimemu.vagrant_gen <scenario_file.yaml>`.
+For each scenario, there is a `*.yaml` file, representing the nasim scenario, `*.vagrant` file for vagrant and `*.rsc` file for router (routerboard script). These are generated with `python -m nasimemu_enhanced.emulation.vagrant_gen <scenario_file.yaml>`.

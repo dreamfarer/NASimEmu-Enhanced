@@ -32,7 +32,7 @@ You can login into individual hosts with `vagrant ssh attacker`, or `vagrant ssh
 If you need to reset the emulation, run `vagrant destroy -f`, followed by `vagrant up`.
 
 ## Running NASimEmu
-By default, the Vagrant is configured to forward the `msfrcpd` to your localhost on port `55553`, which is also configured by default in `nasimemu.msf_interface`. Then, when creating an environment, use `emulation=True`, such as:
+By default, the Vagrant is configured to forward the `msfrcpd` to your localhost on port `55553`, which is also configured by default in `nasimemu_enhanced.emulation.msf_client`. Then, when creating an environment, use `emulation=True`, such as:
 ```
 env = gym.make('NASimEmu-v0', emulate=True, scenario_name='...')
 ```
@@ -40,7 +40,7 @@ In this case, the provided scenario will be used inform the agent about availabl
 
 ## Other details
 ### How the emulation works
-When the agent issues an action to NASimEmuEnv, it is forwarded either to nasim (simulation), or `EmulatedNASimEnv` (emulation). Then it goes to `EmulatedNetwork`, then to `MsfClient`, where it is finally forwarded as a metaspoit action to the `attacker` node. The result of the action is translated back to the nasim observation format. To see the current list of exploits that can be used, see [SERVICES](/docs/SERVICES.md).
+When the agent issues an action to NASimEmuEnv, it is forwarded either to `SimulationEnvironment` (simulation), or `EmulationEnvironment` (emulation). Then it goes to `EmulationNetwork`, then to `MsfClient`, where it is finally forwarded as a metaspoit action to the `attacker` node. The result of the action is translated back to the nasim observation format. To see the current list of exploits that can be used, see [SERVICES](/docs/SERVICES.md).
 
 ### Running emulation on a remote machine
 You can run the vagrant on a remote machine. If you use localhost for performing experiments, forward the port `55553` to your localhost, like this: 

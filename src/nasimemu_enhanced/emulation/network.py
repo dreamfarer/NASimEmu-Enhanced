@@ -1,25 +1,24 @@
-# This is a high-level wrapper around NASimEnv that translates nasim actions into actions in msf_interface and the module result into nasim result.
+# This translates nasim actions into MsfClient calls against the emulated network and the module results back into nasim observations.
 
 from typing import Any
-from nasimemu.nasim.envs.environment import NASimEnv
-from nasimemu.nasim.envs.host_vector import HostVector
-from nasimemu.nasim.scenarios.host import Host
+from nasimemu_enhanced.simulation.host_vector import HostVector
+from nasimemu_enhanced.scenarios.host import Host
 
 import logging, random
-import numpy as np, time, ipaddress
+import numpy as np, ipaddress
 from numpy.typing import NDArray
 
-from nasimemu.msf_interface import MsfClient
+from nasimemu_enhanced.emulation.msf_client import MsfClient
 
 WHOLE_NETWORK = '192.168.1-5.100-110'
 
-class EmulatedNetwork():
+class EmulationNetwork():
     def __init__(self, host_dim: int, scenario: Any) -> None:
         self.msfclient = MsfClient('msfpassword', '192.168.0.100')
         self.host_dim = host_dim
         self.scenario = scenario
 
-        self.logger = logging.getLogger("EmulatedNetwork")
+        self.logger = logging.getLogger("EmulationNetwork")
         # start fresh - kill all sessions
         # for session in self.msfclient.get_sessions():
                 # session.stop()
@@ -389,26 +388,3 @@ class EmulatedNetwork():
             return self.process_scan(a)
 
         raise NotImplementedError(a)
-
-class EmulatedNASimEnv(NASimEnv):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-
-        assert self.current_state is not None
-        self.emulated_network = EmulatedNetwork(self.current_state.tensor.shape[1], self.scenario)
-        self.logger = logging.getLogger("EmulatedNASimEnv")
-
-    def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[NDArray[Any], dict[str, Any]]:
-        super().reset(seed=seed)
-
-        self.logger.info("reset()")
-        s = self.emulated_network.initial_scan()
-        return s, {}
-
-    def step(self, a: Any) -> tuple[NDArray[Any], float, bool, bool, dict[str, Any]]:
-        time.sleep(2)
-
-        self.logger.info(f"step() with {a}")
-        s, i = self.emulated_network.translate_action(a)
-
-        return s, 0., False, False, i  # s, r, terminated, truncated, i

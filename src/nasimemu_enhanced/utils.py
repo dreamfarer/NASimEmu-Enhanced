@@ -25,9 +25,9 @@ class AccessLevel(enum.IntEnum):
 def get_minimal_steps_to_goal(
     topology: Any, sensitive_addresses: Sequence[Address]
 ) -> int:
-    """Get the minimum total number of steps required to reach all sensitive
-    hosts in the network starting from outside the network (i.e. can only
-    reach exposed subnets).
+    """Get the minimum number of steps to reach all sensitive hosts.
+
+    Counts from outside the network (i.e. only exposed subnets are reachable).
 
     Returns
     -------

@@ -18,13 +18,13 @@ license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     "gymnasium==1.3",
-    "networkx", # For env_utils plot_network
-    "prettytable", # For nasim render
-    "pyyaml", # For nasim
+    "networkx", # For graph.plot_network
+    "prettytable", # For simulation.render
+    "pyyaml", # For scenarios yaml loading
     "pymetasploit3 == 1.0.6", # Metasploit RPC client for emulation
-    "requests", # For msf_interface shared session
-    "retry", # For msf_interface shared session
-    "plotly", # For nasim_problem debug
+    "requests", # For emulation.msf_client shared session
+    "retry", # For emulation.msf_client shared session
+    "plotly", # For graph network plotting
     "scipy", # For networkx
     "numpy==2.2.6",
 ]
@@ -41,12 +41,12 @@ source = "vcs"
 only-include = ["src", "README.md", "LICENSE", "pyproject.toml"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/nasimemu"]
+packages = ["src/nasimemu_enhanced"]
 
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["src/nasimemu"]
+files = ["src/nasimemu_enhanced"]
 
 [[tool.mypy.overrides]]
 module = ["plotly.*", "prettytable.*", "pymetasploit3.*"]

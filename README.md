@@ -38,7 +38,7 @@ To use emulation, you have to install [Vagrant](https://developer.hashicorp.com/
 ## Usage
 ```python
 import gymnasium as gym, random, logging
-import nasimemu, nasimemu.env_utils as env_utils
+import nasimemu_enhanced, nasimemu_enhanced.graph as graph
 
 # In this example, a scenario instance is randomly generated from either 'entry_dmz_one_subnet' or 'entry_dmz_two_subnets' on every new episode. Make sure the path to scenarios is correct.
 # To use emulation, setup Vagrant and change emulate=True.
@@ -54,11 +54,11 @@ s, info = env.reset()
 # env.render_state()
 
 for _ in range(3):
-    actions = env_utils.get_possible_actions(env, s)
+    actions = graph.get_possible_actions(env, s)
     env.render(s)
 
     # you can convert the observation into a graph format (e.g., for Pytorch Geometric) as:
-    # s_graph = env_utils.convert_to_graph(s)
+    # s_graph = graph.convert_to_graph(s)
 
     action = random.choice(actions)
     # terminated: the agent chose the terminal action; truncated: step_limit was reached; call env.reset() to start a new episode

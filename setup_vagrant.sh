@@ -6,4 +6,4 @@ if [[ $# -ne 1 ]] ; then
 fi
 
 SCENARIO=$1
-python3 -m nasimemu.vagrant_gen $SCENARIO --dst vagrant/Vagrantfile --routeros vagrant/firewall.rsc
+python3 -m nasimemu_enhanced.emulation.vagrant_gen $SCENARIO --dst vagrant/Vagrantfile --routeros vagrant/firewall.rsc

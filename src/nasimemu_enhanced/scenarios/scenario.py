@@ -2,8 +2,8 @@ import numpy as np
 from collections.abc import Collection
 from typing import Any, cast
 
-import nasimemu.nasim.scenarios.utils as u
-from nasimemu.nasim.scenarios.host import Host
+import nasimemu_enhanced.scenarios.utils as u
+from nasimemu_enhanced.scenarios.host import Host
 
 # (subnet, host) address of a host
 Address = tuple[int, int]

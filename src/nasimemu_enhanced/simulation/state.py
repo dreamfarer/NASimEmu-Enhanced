@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy.typing import NDArray
 
-from .utils import AccessLevel, Address
-from .action import Action, ActionResult
+from ..utils import AccessLevel, Address
+from ..actions import Action, ActionResult
 from .host_vector import HostVector
 from .observation import Observation
 
 if TYPE_CHECKING:
-    from .network import Network
+    from .network import SimulationNetwork
 
 
 class State:
@@ -33,7 +33,8 @@ class State:
     def __init__(
         self, network_tensor: NDArray[Any], host_num_map: dict[Address, int]
     ) -> None:
-        """
+        """Initialize State.
+
         Parameters
         ----------
         state_tensor : np.Array
@@ -46,7 +47,7 @@ class State:
         self.host_num_map = host_num_map
 
     @classmethod
-    def tensorize(cls, network: "Network") -> "State":
+    def tensorize(cls, network: "SimulationNetwork") -> "State":
         h0 = network.hosts[(1, 0)]
         h0_vector = HostVector.vectorize(h0, network.address_space_bounds)
         tensor = np.zeros(
@@ -61,7 +62,7 @@ class State:
         return cls(tensor, network.host_num_map)
 
     @classmethod
-    def generate_initial_state(cls, network: "Network") -> "State":
+    def generate_initial_state(cls, network: "SimulationNetwork") -> "State":
         cls.reset()
         state = cls.tensorize(network)
         return network.reset(state)
@@ -79,7 +80,7 @@ class State:
 
     @classmethod
     def reset(cls) -> None:
-        """Reset any class attributes for state """
+        """Reset any class attributes for state."""
         HostVector.reset()
 
     @property
@@ -119,7 +120,7 @@ class State:
     def get_observation(
         self, action: Action, action_result: ActionResult, fully_obs: bool
     ) -> Observation:
-        """Get observation given last action and action result
+        """Get observation given last action and action result.
 
         Parameters
         ----------

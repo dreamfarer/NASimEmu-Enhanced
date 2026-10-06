@@ -1,13 +1,4 @@
-"""Action related classes for the NASim environment.
-
-This module contains the different action classes that are used
-to implement actions within a NASim environment, along within the
-different ActionSpace classes, and the ActionResult class.
-
-Notes
------
-
-**Actions:**
+"""Action classes for the NASim environment.
 
 Every action inherits from the base :class:`Action` class, which defines
 some common attributes and functions. Different types of actions
@@ -22,28 +13,19 @@ Action types implemented:
 - :class:`SubnetScan`
 - :class:`ProcessScan`
 - :class:`NoOp`
-
-**Action Space:**
-
-- :class:`ParameterisedActionSpace`
-
 """
 
 import math
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
-from numpy.typing import NDArray
-from gymnasium import spaces
-
-from .utils import AccessLevel, Address
+from ..utils import AccessLevel, Address
 
 if TYPE_CHECKING:
-    from nasimemu.nasim.scenarios.scenario import Scenario
+    from nasimemu_enhanced.scenarios.scenario import Scenario
 
 
 def load_action_list(scenario: "Scenario") -> list["Action"]:
-    """Load list of actions for environment for given scenario
+    """Load list of actions for environment for given scenario.
 
     Parameters
     ----------
@@ -79,7 +61,7 @@ def load_action_list(scenario: "Scenario") -> list["Action"]:
 
 
 class Action:
-    """The base abstract action class in the environment
+    """The base abstract action class in the environment.
 
     There are multiple types of actions (e.g. exploit, scan, etc.), but every
     action has some common attributes.
@@ -117,9 +99,10 @@ class Action:
                  prob: float = 1.0,
                  req_access: AccessLevel = AccessLevel.USER,
                  **kwargs: Any) -> None:
-        """
+        """Initialize Action.
+
         Parameters
-        ---------
+        ----------
         name : str
             name of action
         target : (int, int)
@@ -140,7 +123,7 @@ class Action:
         self.req_access = req_access
 
     def is_exploit(self) -> bool:
-        """Check if action is an exploit
+        """Check if action is an exploit.
 
         Returns
         -------
@@ -150,7 +133,7 @@ class Action:
         return isinstance(self, Exploit)
 
     def is_privilege_escalation(self) -> bool:
-        """Check if action is privilege escalation action
+        """Check if action is privilege escalation action.
 
         Returns
         -------
@@ -160,7 +143,7 @@ class Action:
         return isinstance(self, PrivilegeEscalation)
 
     def is_scan(self) -> bool:
-        """Check if action is a scan
+        """Check if action is a scan.
 
         Returns
         -------
@@ -170,7 +153,7 @@ class Action:
         return isinstance(self, (ServiceScan, OSScan, SubnetScan, ProcessScan))
 
     def is_remote(self) -> bool:
-        """Check if action is a remote action
+        """Check if action is a remote action.
 
         A remote action is one where the target host is a remote host (i.e. the
         action is not performed locally on the target)
@@ -183,7 +166,7 @@ class Action:
         return isinstance(self, (ServiceScan, OSScan, Exploit))
 
     def is_service_scan(self) -> bool:
-        """Check if action is a service scan
+        """Check if action is a service scan.
 
         Returns
         -------
@@ -193,7 +176,7 @@ class Action:
         return isinstance(self, ServiceScan)
 
     def is_os_scan(self) -> bool:
-        """Check if action is an OS scan
+        """Check if action is an OS scan.
 
         Returns
         -------
@@ -203,7 +186,7 @@ class Action:
         return isinstance(self, OSScan)
 
     def is_subnet_scan(self) -> bool:
-        """Check if action is a subnet scan
+        """Check if action is a subnet scan.
 
         Returns
         -------
@@ -213,7 +196,7 @@ class Action:
         return isinstance(self, SubnetScan)
 
     def is_process_scan(self) -> bool:
-        """Check if action is a process scan
+        """Check if action is a process scan.
 
         Returns
         -------
@@ -257,7 +240,7 @@ class Action:
 
 
 class Exploit(Action):
-    """An Exploit action in the environment
+    """An Exploit action in the environment.
 
     Inherits from the base Action Class.
 
@@ -283,9 +266,10 @@ class Exploit(Action):
                  prob: float = 1.0,
                  req_access: AccessLevel = AccessLevel.USER,
                  **kwargs: Any) -> None:
-        """
+        """Initialize Exploit.
+
         Parameters
-        ---------
+        ----------
         target : (int, int)
             address of target
         cost : float
@@ -326,7 +310,7 @@ class Exploit(Action):
 
 
 class PrivilegeEscalation(Action):
-    """A privilege escalation action in the environment
+    """A privilege escalation action in the environment.
 
     Inherits from the base Action Class.
 
@@ -354,9 +338,10 @@ class PrivilegeEscalation(Action):
                  prob: float = 1.0,
                  req_access: AccessLevel = AccessLevel.USER,
                  **kwargs: Any) -> None:
-        """
+        """Initialize PrivilegeEscalation.
+
         Parameters
-        ---------
+        ----------
         target : (int, int)
             address of target
         cost : float
@@ -398,7 +383,7 @@ class PrivilegeEscalation(Action):
 
 
 class ServiceScan(Action):
-    """A Service Scan action in the environment
+    """A Service Scan action in the environment.
 
     Inherits from the base Action Class.
     """
@@ -409,9 +394,10 @@ class ServiceScan(Action):
                  prob: float = 1.0,
                  req_access: AccessLevel = AccessLevel.USER,
                  **kwargs: Any) -> None:
-        """
+        """Initialize ServiceScan.
+
         Parameters
-        ---------
+        ----------
         target : (int, int)
             address of target
         cost : float
@@ -431,7 +417,7 @@ class ServiceScan(Action):
 
 
 class OSScan(Action):
-    """An OS Scan action in the environment
+    """An OS Scan action in the environment.
 
     Inherits from the base Action Class.
     """
@@ -442,9 +428,10 @@ class OSScan(Action):
                  prob: float = 1.0,
                  req_access: AccessLevel = AccessLevel.USER,
                  **kwargs: Any) -> None:
-        """
+        """Initialize OSScan.
+
         Parameters
-        ---------
+        ----------
         target : (int, int)
             address of target
         cost : float
@@ -464,7 +451,7 @@ class OSScan(Action):
 
 
 class SubnetScan(Action):
-    """A Subnet Scan action in the environment
+    """A Subnet Scan action in the environment.
 
     Inherits from the base Action Class.
     """
@@ -475,9 +462,10 @@ class SubnetScan(Action):
                  prob: float = 1.0,
                  req_access: AccessLevel = AccessLevel.USER,
                  **kwargs: Any) -> None:
-        """
+        """Initialize SubnetScan.
+
         Parameters
-        ---------
+        ----------
         target : (int, int)
             address of target
         cost : float
@@ -497,7 +485,7 @@ class SubnetScan(Action):
 
 
 class ProcessScan(Action):
-    """A Process Scan action in the environment
+    """A Process Scan action in the environment.
 
     Inherits from the base Action Class.
     """
@@ -508,9 +496,10 @@ class ProcessScan(Action):
                  prob: float = 1.0,
                  req_access: AccessLevel = AccessLevel.USER,
                  **kwargs: Any) -> None:
-        """
+        """Initialize ProcessScan.
+
         Parameters
-        ---------
+        ----------
         target : (int, int)
             address of target
         cost : float
@@ -530,7 +519,7 @@ class ProcessScan(Action):
 
 
 class NoOp(Action):
-    """A do nothing action in the environment
+    """A do nothing action in the environment.
 
     Inherits from the base Action Class
     """
@@ -541,294 +530,3 @@ class NoOp(Action):
                          cost=0,
                          prob=1.0,
                          req_access=AccessLevel.NONE)
-
-
-class ActionResult:
-    """A dataclass for storing the results of an Action.
-
-    These results are then used to update the full state and observation.
-
-    ...
-
-    Attributes
-    ----------
-    success : bool
-        True if exploit/scan was successful, False otherwise
-    value : float
-        value gained from action. Is the value of the host if successfuly
-        exploited, otherwise 0
-    services : dict
-        services identified by action.
-    os : dict
-        OS identified by action
-    processes : dict
-        processes identified by action
-    access : dict
-        access gained by action
-    discovered : dict
-        host addresses discovered by action
-    connection_error : bool
-        True if action failed due to connection error (e.g. could
-        not reach target)
-    permission_error : bool
-        True if action failed due to a permission error (e.g. incorrect access
-        level to perform action)
-    undefined_error : bool
-        True if action failed due to an undefined error (e.g. random exploit
-        failure)
-    newly_discovered : dict
-        host addresses discovered for the first time by action
-    """
-
-    def __init__(self,
-                 success: bool,
-                 value: float = 0.0,
-                 services: dict[str, Any] | None = None,
-                 os: dict[str, Any] | None = None,
-                 processes: dict[str, Any] | None = None,
-                 access: Any = None,
-                 discovered: dict[Address, bool] | None = None,
-                 connection_error: bool = False,
-                 permission_error: bool = False,
-                 undefined_error: bool = False,
-                 newly_discovered: dict[Address, bool] | None = None) -> None:
-        """
-        Parameters
-        ----------
-        success : bool
-            True if exploit/scan was successful, False otherwise
-        value : float, optional
-            value gained from action (default=0.0)
-        services : dict, optional
-            services identified by action (default=None={})
-        os : dict, optional
-            OS identified by action (default=None={})
-        processes : dict, optional
-            processes identified by action (default=None={})
-        access : dict, optional
-            access gained by action (default=None={})
-        discovered : dict, optional
-            host addresses discovered by action (default=None={})
-        connection_error : bool, optional
-            True if action failed due to connection error (default=False)
-        permission_error : bool, optional
-            True if action failed due to a permission error (default=False)
-        undefined_error : bool, optional
-            True if action failed due to an undefined error (default=False)
-        newly_discovered : dict, optional
-            host addresses discovered for first time by action (default=None)
-        """
-        self.success = success
-        self.value = value
-        self.services = {} if services is None else services
-        self.os = {} if os is None else os
-        self.processes = {} if processes is None else processes
-        self.access = {} if access is None else access
-        self.discovered = {} if discovered is None else discovered
-        self.connection_error = connection_error
-        self.permission_error = permission_error
-        self.undefined_error = undefined_error
-        if newly_discovered is not None:
-            self.newly_discovered = newly_discovered
-        else:
-            self.newly_discovered = {}
-
-    def info(self) -> dict[str, Any]:
-        """Get results as dict
-
-        Returns
-        -------
-        dict
-            action results information
-        """
-        return dict(
-            success=self.success,
-            value=self.value,
-            services=self.services,
-            os=self.os,
-            processes=self.processes,
-            access=self.access,
-            discovered=self.discovered,
-            connection_error=self.connection_error,
-            permission_error=self.permission_error,
-            newly_discovered=self.newly_discovered
-        )
-
-    def __str__(self) -> str:
-        output = ["ActionObservation:"]
-        for k, val in self.info().items():
-            output.append(f"  {k}={val}")
-        return "\n".join(output)
-
-
-class ParameterisedActionSpace(spaces.MultiDiscrete):
-    """A parameterised action space for NASim environment.
-
-    Inherits and implements the gym.spaces.MultiDiscrete action space, where
-    each dimension corresponds to a different action parameter.
-
-    The action parameters (in order) are:
-
-    0. Action Type = [0, 5]
-
-       Where:
-
-         0=Exploit,
-
-         1=PrivilegeEscalation,
-
-         2=ServiceScan,
-
-         3=OSScan,
-
-         4=SubnetScan,
-
-         5=ProcessScan,
-
-    1. Subnet = [0, #subnets-1]
-
-       -1 since we don't include the internet subnet
-
-    2. Host = [0, max subnets size-1]
-    3. OS = [0, #OS+1]
-
-       Where 0=None.
-
-    4. Service = [0, #services]
-    5. Process = [0, #processes+1]
-
-       Where 0=None.
-
-    Note that OS, Service and Process are only importand for exploits and
-    privilege escalation actions.
-
-    ...
-
-    Attributes
-    ----------
-    nvec : Numpy.Array
-        vector of the of the size of each parameter
-    actions : list of Actions
-        the list of all the Actions in the action space
-    """
-
-    action_types: list[type[Action]] = [
-        Exploit,
-        PrivilegeEscalation,
-        ServiceScan,
-        OSScan,
-        SubnetScan,
-        ProcessScan
-    ]
-
-    def __init__(self, scenario: "Scenario") -> None:
-        """
-        Parameters
-        ----------
-        scenario : Scenario
-            scenario description
-        """
-        self.scenario = scenario
-        self.actions = load_action_list(scenario)
-
-        nvec = [
-            len(self.action_types),
-            len(self.scenario.subnets)-1,
-            max(self.scenario.subnets),
-            self.scenario.num_os+1,
-            self.scenario.num_services,
-            self.scenario.num_processes
-        ]
-
-        super().__init__(nvec)
-
-    def get_action(self, action_vec: Sequence[int] | NDArray[Any]) -> Action:
-        """Get Action object corresponding to action vector.
-
-        Parameters
-        ----------
-        action_vector : list of ints or tuple of ints or Numpy.Array
-            the action vector
-
-        Returns
-        -------
-        Action
-            Corresponding Action object
-
-        Notes
-        -----
-        1. if host# specified in action vector is greater than
-           the number of hosts in the specified subnet, then host#
-           will be changed to host# % subnet size.
-        2. if action is an exploit and parameters do not match
-           any exploit definition in the scenario description then
-           a NoOp action is returned with 0 cost.
-        """
-        assert isinstance(action_vec, (list, tuple, np.ndarray)), \
-            ("When using parameterised action space, action must be an Action"
-             f" object, a list or a numpy array: {action_vec} is invalid")
-        a_class = self.action_types[action_vec[0]]
-        # need to add one to subnet to account for Internet subnet
-        subnet = action_vec[1]+1
-        host = action_vec[2] % self.scenario.subnets[subnet]
-
-        target = (subnet, host)
-
-        if a_class not in (Exploit, PrivilegeEscalation):
-            # can ignore other action parameters
-            kwargs = self._get_scan_action_def(a_class)
-            return a_class(target=target, **kwargs)
-
-        os = None if action_vec[3] == 0 else self.scenario.os[action_vec[3]-1]
-
-        if a_class == Exploit:
-            # have to make sure it is valid choice
-            # and also get constant params (name, cost, prob, access)
-            service = self.scenario.services[action_vec[4]]
-            a_def = self._get_exploit_def(service, os)
-        else:
-            # privilege escalation
-            # have to make sure it is valid choice
-            # and also get constant params (name, cost, prob, access)
-            proc = self.scenario.processes[action_vec[5]]
-            a_def = self._get_privesc_def(proc, os)
-
-        if a_def is None:
-            return NoOp()
-        return a_class(target=target, **a_def)
-
-    def _get_scan_action_def(self, a_class: type[Action]) -> dict[str, Any]:
-        """Get the constants for scan actions definitions """
-        if a_class == ServiceScan:
-            cost = self.scenario.service_scan_cost
-        elif a_class == OSScan:
-            cost = self.scenario.os_scan_cost
-        elif a_class == SubnetScan:
-            cost = self.scenario.subnet_scan_cost
-        elif a_class == ProcessScan:
-            cost = self.scenario.process_scan_cost
-        else:
-            raise TypeError(f"Not implemented for Action class {a_class}")
-        return {"cost": cost}
-
-    def _get_exploit_def(
-        self, service: str, os: str | None
-    ) -> dict[str, Any] | None:
-        """Check if exploit parameters are valid """
-        e_map = self.scenario.exploit_map
-        if service not in e_map:
-            return None
-        if os not in e_map[service]:
-            return None
-        return e_map[service][os]
-
-    def _get_privesc_def(
-        self, proc: str, os: str | None
-    ) -> dict[str, Any] | None:
-        """Check if privilege escalation parameters are valid """
-        pe_map = self.scenario.privesc_map
-        if proc not in pe_map:
-            return None
-        if os not in pe_map[proc]:
-            return None
-        return pe_map[proc][os]

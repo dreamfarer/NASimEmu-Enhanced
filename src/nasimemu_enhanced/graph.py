@@ -1,5 +1,5 @@
 from typing import Any
-from nasimemu.nasim.envs.host_vector import HostVector
+from nasimemu_enhanced.simulation.host_vector import HostVector
 import numpy as np
 from numpy.typing import NDArray
 

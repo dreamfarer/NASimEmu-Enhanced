@@ -7,9 +7,9 @@ import os.path as path
 from pathlib import Path
 from typing import Any, IO
 
-from .env_emu import EmulatedNetwork
-from .nasim.scenarios import load_scenario
-from .nasim.envs.environment import NASimEnv
+from .network import EmulationNetwork
+from ..scenarios import load_scenario
+from ..simulation.environment import SimulationEnvironment
 
 class VagrantGenerator:
 
@@ -144,7 +144,7 @@ end
     def add_host(self, host: Any, is_sensitive: bool) -> None:
         varname = 'target'
         hostname = f"target{host.address[0]}{host.address[1]}"
-        ip = EmulatedNetwork._target_to_ip(host.address)
+        ip = EmulationNetwork._target_to_ip(host.address)
         subnet = host.address[0]
         box_info = self._get_box_from_os(host.os)
         assert box_info is not None
@@ -162,9 +162,7 @@ class RouteOsGenerator:
         self.generate_firewall()
 
     def generate_firewall(self) -> None:
-        """for link in self.firewall:
-            for service_allowed in self.firewall[link]:
-                print(service_allowed, self.firewall[link][service_allowed])"""
+        """Write RouterOS firewall rules for the topology links."""
         text_output = ""
         for address_in in range(len(self.topology)):
             for address_out in range(len(self.topology[address_in])):
@@ -222,7 +220,7 @@ if __name__ == '__main__':
     scenario = load_scenario(args.file)
 
     print("\nGenerated scenario:")
-    env = NASimEnv(scenario)
+    env = SimulationEnvironment(scenario)
     env.reset()
     env.render_state()
     print("")

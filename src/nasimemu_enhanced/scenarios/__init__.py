@@ -1,6 +1,6 @@
 from .utils import INTERNET as INTERNET
 from .scenario import Scenario as Scenario
-from .loader_v2 import ScenarioLoaderV2 as ScenarioLoaderV2
+from .loader import ScenarioLoaderV2 as ScenarioLoaderV2
 
 from pathlib import Path
 

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy.typing import NDArray
 
-from .action import ActionResult
+from ..actions import ActionResult
 from .host_vector import HostVector
 
 if TYPE_CHECKING:
@@ -55,7 +55,8 @@ class Observation:
     _undef_error_idx = _perm_error_idx + 1
 
     def __init__(self, state_shape: tuple[int, ...]) -> None:
-        """
+        """Initialize Observation.
+
         Parameters
         ----------
         state_shape : (int, int)
@@ -95,7 +96,7 @@ class Observation:
 
     @property
     def success(self) -> bool:
-        """Whether the action succeded or not
+        """Whether the action succeded or not.
 
         Returns
         -------
@@ -106,7 +107,7 @@ class Observation:
 
     @property
     def connection_error(self) -> bool:
-        """Whether there was a connection error or not
+        """Whether there was a connection error or not.
 
         Returns
         -------
@@ -117,7 +118,7 @@ class Observation:
 
     @property
     def permission_error(self) -> bool:
-        """Whether there was a permission error or not
+        """Whether there was a permission error or not.
 
         Returns
         -------
@@ -128,7 +129,7 @@ class Observation:
 
     @property
     def undefined_error(self) -> bool:
-        """Whether there was an undefined error or not
+        """Whether there was an undefined error or not.
 
         Returns
         -------
@@ -138,7 +139,7 @@ class Observation:
         return bool(self.tensor[self.aux_row][self._undef_error_idx])
 
     def shape(self) -> tuple[int, int]:
-        """Get the (2D) shape of the observation
+        """Get the (2D) shape of the observation.
 
         Returns
         -------
@@ -148,7 +149,7 @@ class Observation:
         return self.obs_shape
 
     def numpy(self) -> NDArray[Any]:
-        """Get the observation tensor
+        """Get the observation tensor.
 
         Returns
         -------
@@ -160,7 +161,7 @@ class Observation:
     def get_readable(
         self
     ) -> tuple[list[dict[str, Any]], dict[str, bool]]:
-        """Get a human readable version of the observation
+        """Get a human readable version of the observation.
 
         Returns
         -------

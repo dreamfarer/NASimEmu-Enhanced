@@ -2,14 +2,14 @@ import gymnasium as gym, random
 from typing import Any
 import numpy as np
 from numpy.typing import NDArray
-from nasimemu import env_utils
+from nasimemu_enhanced import graph
 
-from nasimemu.nasim.envs.action import Action, Exploit, PrivilegeEscalation, ServiceScan, OSScan, SubnetScan, ProcessScan, NoOp
-from nasimemu.nasim.scenarios import load_scenario
+from nasimemu_enhanced.actions import Action, Exploit, PrivilegeEscalation, ServiceScan, OSScan, SubnetScan, ProcessScan, NoOp
+from nasimemu_enhanced.scenarios import load_scenario
 
-from nasimemu.nasim.envs.environment import NASimEnv
-from nasimemu.nasim.envs.host_vector import HostVector
-from nasimemu.env_emu import EmulatedNASimEnv
+from nasimemu_enhanced.simulation.environment import SimulationEnvironment
+from nasimemu_enhanced.simulation.host_vector import HostVector
+from nasimemu_enhanced.emulation.environment import EmulationEnvironment
 
 class TerminalAction():
     pass
@@ -70,9 +70,9 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         scenario = load_scenario(scenario_name)
 
         if self.emulate:
-            self.env: NASimEnv = EmulatedNASimEnv(scenario=scenario)
+            self.env: SimulationEnvironment = EmulationEnvironment(scenario=scenario)
         else:
-            self.env = NASimEnv(scenario, fully_obs=self.fully_obs)
+            self.env = SimulationEnvironment(scenario, fully_obs=self.fully_obs)
 
         if not self.fully_obs:
             self.env_po_wrapper = PartiallyObservableWrapper()
@@ -202,10 +202,10 @@ class NASimEmuEnv(gym.Env[Any, Any]):
 
         # optionally, convert the observation into a graph
         if self.observation_format in ['graph', 'graph_v1']:
-            s = env_utils.convert_to_graph(s, self.subnet_graph, version=1)
+            s = graph.convert_to_graph(s, self.subnet_graph, version=1)
 
         if self.observation_format == 'graph_v2':
-            s = env_utils.convert_to_graph(s, self.subnet_graph, version=2)
+            s = graph.convert_to_graph(s, self.subnet_graph, version=2)
 
         i['s_true'] = s
         i['step_idx'] = self.step_idx
@@ -250,10 +250,10 @@ class NASimEmuEnv(gym.Env[Any, Any]):
 
 
         if self.observation_format in ['graph', 'graph_v1']:
-            s = env_utils.convert_to_graph(s, self.subnet_graph, version=1)
+            s = graph.convert_to_graph(s, self.subnet_graph, version=1)
 
         if self.observation_format == 'graph_v2':
-            s = env_utils.convert_to_graph(s, self.subnet_graph, version=2)
+            s = graph.convert_to_graph(s, self.subnet_graph, version=2)
 
         # break the tie with random offset
         if self.random_init:
