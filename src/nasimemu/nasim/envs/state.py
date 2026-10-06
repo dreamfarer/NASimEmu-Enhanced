@@ -216,14 +216,8 @@ class State:
         obs.update_from_host(t_idx, target_obs)
         return obs
 
-    def shape_flat(self) -> tuple[int, ...]:
-        return self.numpy_flat().shape
-
     def shape(self) -> tuple[int, ...]:
         return self.tensor.shape
-
-    def numpy_flat(self) -> NDArray[Any]:
-        return self.tensor.flatten()
 
     def numpy(self) -> NDArray[Any]:
         return self.tensor

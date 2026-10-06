@@ -23,12 +23,8 @@ Action types implemented:
 - :class:`ProcessScan`
 - :class:`NoOp`
 
-**Action Spaces:**
+**Action Space:**
 
-There are two types of action spaces, depending on if you are using flat
-actions or not:
-
-- :class:`FlatActionSpace`
 - :class:`ParameterisedActionSpace`
 
 """
@@ -663,50 +659,6 @@ class ActionResult:
         for k, val in self.info().items():
             output.append(f"  {k}={val}")
         return "\n".join(output)
-
-
-class FlatActionSpace(spaces.Discrete[np.int64]):
-    """Flat Action space for NASim environment.
-
-    Inherits and implements the gym.spaces.Discrete action space
-
-    ...
-
-    Attributes
-    ----------
-    n : int
-        the number of actions in the action space
-    actions : list of Actions
-        the list of the Actions in the action space
-    """
-
-    def __init__(self, scenario: "Scenario") -> None:
-        """
-        Parameters
-        ---------
-        scenario : Scenario
-            scenario description
-        """
-        self.actions = load_action_list(scenario)
-        super().__init__(len(self.actions))
-
-    def get_action(self, action_idx: int) -> Action:
-        """Get Action object corresponding to action idx
-
-        Parameters
-        ----------
-        action_idx : int
-            the action idx
-
-        Returns
-        -------
-        Action
-            Corresponding Action object
-        """
-        assert isinstance(action_idx, int), \
-            ("When using flat action space, action must be an integer"
-             f" or an Action object: {action_idx} is invalid")
-        return self.actions[action_idx]
 
 
 class ParameterisedActionSpace(spaces.MultiDiscrete):

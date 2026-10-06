@@ -72,7 +72,7 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         if self.emulate:
             self.env: NASimEnv = EmulatedNASimEnv(scenario=scenario)
         else:
-            self.env = NASimEnv(scenario, fully_obs=self.fully_obs, flat_actions=False, flat_obs=False)
+            self.env = NASimEnv(scenario, fully_obs=self.fully_obs)
 
         if not self.fully_obs:
             self.env_po_wrapper = PartiallyObservableWrapper()

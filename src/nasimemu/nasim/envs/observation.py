@@ -164,16 +164,6 @@ class Observation:
         """
         return bool(self.tensor[self.aux_row][self._undef_error_idx])
 
-    def shape_flat(self) -> tuple[int, ...]:
-        """Get the flat (1D) shape of the Observation.
-
-        Returns
-        -------
-        (int, )
-            the flattened shape of observation
-        """
-        return self.numpy_flat().shape
-
     def shape(self) -> tuple[int, int]:
         """Get the (2D) shape of the observation
 
@@ -183,16 +173,6 @@ class Observation:
             the 2D shape of the observation
         """
         return self.obs_shape
-
-    def numpy_flat(self) -> NDArray[Any]:
-        """Get the flattened observation tensor
-
-        Returns
-        -------
-        numpy.ndarray
-            the flattened (1D) observation tenser
-        """
-        return self.tensor.flatten()
 
     def numpy(self) -> NDArray[Any]:
         """Get the observation tensor
