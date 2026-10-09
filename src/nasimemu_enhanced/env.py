@@ -1,10 +1,11 @@
 import gymnasium as gym, random
+from gymnasium import spaces
 from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 from nasimemu_enhanced import graph
 
-from nasimemu_enhanced.actions import Action, Exploit, PrivilegeEscalation, ServiceScan, OSScan, SubnetScan, ProcessScan, NoOp
+from nasimemu_enhanced.actions import Action, ActionResult, Exploit, PrivilegeEscalation, ServiceScan, OSScan, SubnetScan, ProcessScan, NoOp
 from nasimemu_enhanced.scenarios import load_scenario
 
 from nasimemu_enhanced.simulation.environment import SimulationEnvironment
@@ -56,9 +57,86 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         self.fully_obs = fully_obs
         self.augment_with_action = augment_with_action
         self.observation_format = observation_format
+        self.graph_version = {'graph': 1, 'graph_v1': 1, 'graph_v2': 2}.get(observation_format) # any other format is the matrix
 
         self.scenario_name = scenario_name
         self.random_init = random_init
+
+        self._define_spaces()
+
+    # the spaces have to be known before the first reset(), so every listed scenario is instantiated once and has to agree on them
+    def _define_spaces(self) -> None:
+        specs = []
+
+        for scenario_name in self.scenario_name.split(':'):
+            scenario = load_scenario(scenario_name)
+            self.env: SimulationEnvironment = SimulationEnvironment(scenario, fully_obs=self.fully_obs)
+            _, _, self.action_list = self._create_action_lists()
+
+            specs.append( (scenario.address_space_bounds, self._get_layout(), self._get_action_catalogue()) )
+
+        if any(spec != specs[0] for spec in specs):
+            raise ValueError(f"Scenarios with different address space bounds, host vectors or actions cannot share one environment: {self.scenario_name}")
+
+        (max_subnets, max_hosts), layout, action_catalogue = specs[0]
+        row_size = layout['row_size']
+
+        # action = (subnet, host, action_id); the last action_id is the terminal action
+        self.action_shape = (max_subnets, max_hosts, len(action_catalogue))
+        self.action_space = spaces.MultiDiscrete(list(self.action_shape))
+
+        if self.graph_version is None:
+            # one row per observed host and a last row with the action result; the number of rows grows as hosts are discovered
+            self.observation_space = spaces.Sequence(spaces.Box(-np.inf, np.inf, (row_size,), dtype=np.float32), stack=True)
+        else:
+            # hosts and subnets are nodes; a node has its type (0 = host, 1 = subnet) prepended to its row
+            # the edges carry no information, but a Graph space only accepts edge links together with edge features
+            self.observation_space = spaces.Dict({
+                'graph': spaces.Graph(node_space=spaces.Box(-np.inf, np.inf, (row_size + 1,), dtype=np.float64), edge_space=spaces.Discrete(1)),
+                'node_index': spaces.Sequence(spaces.Box(-1, max(max_subnets, max_hosts), (2,), dtype=np.int64), stack=True), # (subnet, host), host = -1 for subnets
+                'pos_index': spaces.Sequence(spaces.Box(0, np.inf, (), dtype=np.float64), stack=True),
+            })
+
+    # where the fields are in a host row, as [start, stop) columns
+    def _get_layout(self) -> dict[str, Any]:
+        hv = HostVector
+        fields = {
+            'subnet': [hv._subnet_address_idx, hv._host_address_idx],
+            'host': [hv._host_address_idx, hv._compromised_idx],
+            'compromised': [hv._compromised_idx, hv._compromised_idx + 1],
+            'reachable': [hv._reachable_idx, hv._reachable_idx + 1],
+            'discovered': [hv._discovered_idx, hv._discovered_idx + 1],
+            'value': [hv._value_idx, hv._value_idx + 1],
+            'discovery_value': [hv._discovery_value_idx, hv._discovery_value_idx + 1],
+            'access': [hv._access_idx, hv._access_idx + 1],
+            'os': [hv._os_start_idx, hv._service_start_idx],
+            'services': [hv._service_start_idx, hv._process_start_idx],
+            'processes': [hv._process_start_idx, hv.state_size],
+        }
+        row_size = hv.state_size
+
+        if self.augment_with_action:
+            fields['last_action'] = [row_size, row_size + len(self.action_list)]
+            row_size += len(self.action_list)
+
+        return {
+            'row_size': row_size,
+            'fields': fields,
+            'os': sorted(hv.os_idx_map, key=lambda x: hv.os_idx_map[x]),
+            'services': sorted(hv.service_idx_map, key=lambda x: hv.service_idx_map[x]),
+            'processes': sorted(hv.process_idx_map, key=lambda x: hv.process_idx_map[x]),
+        }
+
+    # the actions an agent can choose from, by action_id
+    def _get_action_catalogue(self) -> list[dict[str, Any]]:
+        catalogue: list[dict[str, Any]] = []
+
+        for action_id, (a_class, a_params) in enumerate(self.action_list):
+            params = {k: (v if isinstance(v, str) else int(v) if isinstance(v, int) else float(v)) for k, v in a_params.items() if v is not None}
+            catalogue.append({'id': action_id, 'type': a_class.__name__, **params})
+
+        catalogue.append({'id': len(self.action_list), 'type': TerminalAction.__name__})
+        return catalogue
 
     def _generate_env(self) -> None:
         if ':' in self.scenario_name: # there are multiple possible scenarios
@@ -70,7 +148,7 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         scenario = load_scenario(scenario_name)
 
         if self.emulate:
-            self.env: SimulationEnvironment = EmulationEnvironment(scenario=scenario)
+            self.env = EmulationEnvironment(scenario=scenario)
         else:
             self.env = SimulationEnvironment(scenario, fully_obs=self.fully_obs)
 
@@ -108,19 +186,52 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         return exploit_list, privesc_list, action_list
 
     def _translate_action(self, action: Any) -> Any:
-        target, action_id = action
+        subnet, host, action_id = (int(x) for x in action)
 
-        if action_id == -1: # terminal action
+        if action_id == len(self.action_list): # terminal action
             return TerminalAction()
 
         a_class, a_params = self.action_list[action_id]
-        # print(a_class, a_params, target, action_id)
-        a = a_class(target=tuple(target), **a_params)
+        # print(a_class, a_params, subnet, host, action_id)
+        return a_class(target=(subnet, host), **a_params)
 
-        if not self.emulate: # in emulation, we don't know the exact scenario configuration; hence the actions can be different
-            assert (self.env.action_space is not None) and (a in self.env.action_space.actions), "Failed to execute " + str(a)
+    # the action space covers the whole address space, but only some of the addresses are hosts
+    def _is_valid_target(self, a: Action) -> bool:
+        if self.emulate: # in emulation, we don't know the exact scenario configuration
+            return True
 
-        return a
+        return a.target in self.env.scenario.hosts
+
+    # an action against an address without a host fails with a connection error and still costs
+    def _step_invalid_target(self, a: Action) -> tuple[NDArray[Any], float, dict[str, Any]]:
+        assert self.env.current_state is not None
+        result = ActionResult(False, 0.0, connection_error=True)
+        obs = self.env.current_state.get_observation(a, result, self.fully_obs)
+        return obs.numpy(), -a.cost, result.info()
+
+    # marks the actions that target an observed host, in the shape of the action space; it repeats what the observation shows and says nothing about whether an action will succeed
+    def _get_action_mask(self, s: NDArray[Any]) -> NDArray[np.bool_]:
+        action_mask = np.zeros(self.action_shape, dtype=np.bool_)
+
+        for host_data in s[:-1]:
+            subnet, host = HostVector(host_data).address
+
+            if (subnet, host) != (0, 0): # skip invalid entries
+                action_mask[subnet, host] = True
+
+        return action_mask
+
+    def _to_observation(self, s: NDArray[Any]) -> Any:
+        if self.graph_version is None:
+            return s
+
+        node_feats, edge_index, node_index, pos_index = graph.convert_to_graph(s, self.subnet_graph, version=self.graph_version)
+
+        return {
+            'graph': spaces.GraphInstance(nodes=node_feats, edges=np.zeros(edge_index.shape[1], dtype=np.int64), edge_links=edge_index.T),
+            'node_index': node_index,
+            'pos_index': pos_index,
+        }
 
     def _get_subnets(self, s: NDArray[Any]) -> set[int]:
         return {HostVector(x).address[0] for x in s[:-1]}
@@ -129,24 +240,25 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         action_matrix = np.zeros((len(s), len(self.action_list)), dtype=np.float32)
 
         if action is not None:
-            target, action_id = action
+            subnet, host, action_id = (int(x) for x in action)
 
             host_addresses = [HostVector(host_data).address for host_data in s[:-1]]
-            host_index = host_addresses.index(tuple(target))
 
-            action_matrix[host_index, action_id] = 1.
+            if (subnet, host) in host_addresses: # the target does not have to be an observed host
+                action_column = -1 if action_id == len(self.action_list) else action_id # the terminal action shares the last column
+                action_matrix[host_addresses.index((subnet, host)), action_column] = 1.
 
         s = np.concatenate((s, action_matrix), axis=1)
 
         return s
 
-    # action = ((subnet, host), action_id)
+    # action = (subnet, host, action_id)
     def step(self, action: Any) -> tuple[Any, float, bool, bool, dict[str, Any]]:
         s: Any
-        if type(action) in [np.ndarray, list, tuple]:
-            a = self._translate_action(action)
-        else:
+        if isinstance(action, (Action, TerminalAction)):
             a = action
+        else:
+            a = self._translate_action(action)
 
         # ignore the flags from the environment, the agent has to choose to terminate
         terminated = isinstance(a, TerminalAction)
@@ -154,6 +266,9 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         if terminated:
             s, r, _, _, i = self.env.step(NoOp())
             r = 0.
+
+        elif isinstance(a, Action) and not self._is_valid_target(a):
+            s, r, i = self._step_invalid_target(a)
 
         else:
             s, r, _, _, i = self.env.step(a)
@@ -195,17 +310,14 @@ class NASimEmuEnv(gym.Env[Any, Any]):
 
         i['s_raw'] = s
         i['a_raw'] = a
+        i['action_mask'] = self._get_action_mask(s)
 
         # optionally, include the last performed action
         if self.augment_with_action:
             s = self._augment_with_action(s, action)
 
         # optionally, convert the observation into a graph
-        if self.observation_format in ['graph', 'graph_v1']:
-            s = graph.convert_to_graph(s, self.subnet_graph, version=1)
-
-        if self.observation_format == 'graph_v2':
-            s = graph.convert_to_graph(s, self.subnet_graph, version=2)
+        s = self._to_observation(s)
 
         i['s_true'] = s
         i['step_idx'] = self.step_idx
@@ -240,6 +352,7 @@ class NASimEmuEnv(gym.Env[Any, Any]):
             s = self.env_po_wrapper.reset(s)
 
         self.s_raw = s
+        action_mask = self._get_action_mask(s)
 
         self.discovered_subnets = self._get_subnets(s)
         self.subnet_graph = set()
@@ -248,12 +361,7 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         if self.augment_with_action:
             s = self._augment_with_action(s, None)
 
-
-        if self.observation_format in ['graph', 'graph_v1']:
-            s = graph.convert_to_graph(s, self.subnet_graph, version=1)
-
-        if self.observation_format == 'graph_v2':
-            s = graph.convert_to_graph(s, self.subnet_graph, version=2)
+        s = self._to_observation(s)
 
         # break the tie with random offset
         if self.random_init:
@@ -270,7 +378,7 @@ class NASimEmuEnv(gym.Env[Any, Any]):
             self.env.render_state()
             self.env.render(obs=s)
 
-        return s, {}
+        return s, {'layout': self._get_layout(), 'actions': self._get_action_catalogue(), 'action_mask': action_mask}
 
     def render(self, s: NDArray[Any]) -> None:  # type: ignore[override]  # renders the given observation
         self.env.render(obs=s)

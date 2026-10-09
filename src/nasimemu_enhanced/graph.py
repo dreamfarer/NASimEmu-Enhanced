@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 import networkx as nx
 import plotly.graph_objects as go
 
-def get_possible_actions(env: Any, s: NDArray[Any]) -> list[tuple[Any, int]]:
+def get_possible_actions(env: Any, s: NDArray[Any]) -> list[tuple[int, int, int]]:
     # gather all possible addresses
     addresses = []
     for host_data in s[:-1]:
@@ -16,7 +16,7 @@ def get_possible_actions(env: Any, s: NDArray[Any]) -> list[tuple[Any, int]]:
     possible_actions = []
 
     for host_add in addresses:
-        possible_actions.extend([(host_add, action_id) for action_id in range(len(env.action_list))]) 
+        possible_actions.extend([(int(host_add[0]), int(host_add[1]), action_id) for action_id in range(len(env.action_list))])
 
     return possible_actions
 
