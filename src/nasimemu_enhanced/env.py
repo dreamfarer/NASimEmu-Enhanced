@@ -18,6 +18,7 @@ from nasimemu_enhanced.actions import Action, ActionResult, Exploit, PrivilegeEs
 from nasimemu_enhanced.scenarios import load_scenario
 from nasimemu_enhanced.simulation.environment import SimulationEnvironment
 from nasimemu_enhanced.simulation.host_vector import HostVector
+from nasimemu_enhanced.utils import Address
 from nasimemu_enhanced.emulation.environment import EmulationEnvironment
 
 
@@ -38,6 +39,9 @@ class PartiallyObservableWrapper:
     discovered.
     """
 
+    def __init__(self) -> None:
+        self._obs: dict[Address, NDArray[Any]] = {}
+
     def reset(self, s: NDArray[Any]) -> NDArray[Any]:
         """Forget everything and start from the initial observation.
 
@@ -51,8 +55,8 @@ class PartiallyObservableWrapper:
         numpy.ndarray
             the accumulated observation
         """
-        self.__obs: dict[Any, Any] = dict()
-        obs = self.__update_obs(s)
+        self._obs = {}
+        obs = self._update_obs(s)
         return obs
 
     def step(self, s: NDArray[Any]) -> NDArray[Any]:
@@ -68,10 +72,10 @@ class PartiallyObservableWrapper:
         numpy.ndarray
             the accumulated observation
         """
-        obs = self.__update_obs(s)
+        obs = self._update_obs(s)
         return obs
 
-    def __update_obs(self, s: NDArray[Any]) -> NDArray[Any]:
+    def _update_obs(self, s: NDArray[Any]) -> NDArray[Any]:
         """Update the known hosts and build the observation from them.
 
         Non-zero fields of a host row overwrite what was known about that
@@ -83,15 +87,15 @@ class PartiallyObservableWrapper:
             if address == (0, 0):  # skip invalid entries
                 continue
 
-            if address in self.__obs:
+            if address in self._obs:
                 new_fields = host_data != 0
-                self.__obs[address][new_fields] = host_data[new_fields]
+                self._obs[address][new_fields] = host_data[new_fields]
             else:
-                self.__obs[address] = host_data
+                self._obs[address] = host_data
 
         # construct and return new observation
         action_result = s[-1]
-        obs = np.vstack([list(self.__obs.values()), action_result])
+        obs = np.vstack([list(self._obs.values()), action_result])
 
         return obs
 
@@ -170,8 +174,9 @@ class NASimEmuEnv(gym.Env[Any, Any]):
       subnet nodes
     - ``pos_index``: position of every host node, 0 for subnet nodes
 
-    In ``'graph'`` hosts of a subnet are connected to each other, in
-    ``'graph_v2'`` they are connected to their subnet node.
+    In ``'graph'`` all nodes of a subnet (its hosts and the subnet node) are
+    connected to each other, in ``'graph_v2'`` the hosts are connected only to
+    their subnet node.
 
     **Episode end.** ``terminated`` is only set by the terminal action; the
     environment never ends an episode on its own when all sensitive hosts are
