@@ -46,6 +46,10 @@ import nasimemu_enhanced, nasimemu_enhanced.graph as graph
 env = gym.make('NASimEmu-v0', emulate=False, scenario_name='scenarios/entry_dmz_one_subnet.v2.yaml:scenarios/entry_dmz_two_subnets.v2.yaml').unwrapped
 s, info = env.reset()
 
+# info['layout'] names the columns of a host row and info['actions'] lists the actions by action_id
+# info['action_mask'] (also returned by step) marks the actions that target an observed host, in the shape of the action space
+# env.action_space and env.observation_space are standard Gymnasium spaces
+
 # To see the emulation logs, uncomment the following:
 # logging.basicConfig(level=logging.DEBUG)
 # logging.getLogger('urllib3').setLevel(logging.INFO)
@@ -57,8 +61,7 @@ for _ in range(3):
     actions = graph.get_possible_actions(env, s)
     env.render(s)
 
-    # you can convert the observation into a graph format (e.g., for Pytorch Geometric) as:
-    # s_graph = graph.convert_to_graph(s)
+    # to get the observation as a graph (e.g., for Pytorch Geometric), create the env with observation_format='graph_v2'
 
     action = random.choice(actions)
     # terminated: the agent chose the terminal action; truncated: step_limit was reached; call env.reset() to start a new episode
@@ -66,14 +69,14 @@ for _ in range(3):
 
     print(f"Possible actions: {actions}")
 
-    (action_subnet, action_host), action_id = action
+    action_subnet, action_host, action_id = action  # the action space is MultiDiscrete; the last action_id ends the episode
     print(f"Taken action: {action}; subnet_id={action_subnet}, host_id={action_host}, action={env.action_list[action_id]}")
     print(f"reward: {r}, terminated: {terminated}, truncated: {truncated}\n")
     input()
 ```
 
 ## Gymnasium integration
-NASimEmu currently doesn't support many of the default agents made for Gymnasium, because it uses custom environment spaces (the size of the environment is unknown to the attacker at the beginning) and an action space that changes at each step when a new host is discovered.
+The environment declares standard Gymnasium spaces and passes Gymnasium's environment checker. The action space is `MultiDiscrete([subnets, hosts, actions + 1])`. The size of the network is unknown to the attacker at the beginning, so the observation is of variable length: a `Sequence` of host rows in the matrix format and a `Graph` in the graph formats. Many of the default agents made for Gymnasium expect fixed-size observations and therefore still do not work out of the box.
 
 ## Implemented Deep RL Agents
 See the separate repository [NASimEmu-agents](https://github.com/jaromiru/NASimEmu-agents) for implemented agents.

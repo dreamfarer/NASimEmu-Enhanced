@@ -173,12 +173,22 @@ class MsfClient(MsfModuleMixin):
           emit ``set <opt> None``), which lets callers unset options via
           ``forced_params`` (e.g. ``{'LHOST': None}``),
         - wait until the console output stabilises (it is no longer busy and no new
-          data arrived) before returning, instead of stopping as soon as it idles once.
+          data arrived) before returning, instead of stopping as soon as it idles once,
+        - wait for the shared console to clear on entry (up to ``timeout``) rather
+          than raising immediately when a previous action left it busy.
         """
         console = self.console
 
-        if console.is_busy():
-            raise MsfError(f'Console {console.cid} is busy')
+        # Wait for any previous activity (e.g. a prior exploit's payload handler)
+        # to finish before reusing the shared console, rather than failing
+        # outright; raise only if it never clears within the timeout.
+        waited = 0
+        while console.is_busy():
+            if waited >= timeout:
+                raise MsfError(f'Console {console.cid} is still busy after {timeout}s')
+            self.logger.debug('Console busy on entry. Waiting...')
+            time.sleep(5)
+            waited += 5
         console.read()  # clear the data buffer
 
         opts = module.runoptions.copy()

@@ -1,3 +1,9 @@
+"""Graph views of an observation.
+
+Converts the observation matrix of :class:`nasimemu_enhanced.env.NASimEmuEnv`
+into a graph of hosts and subnets, lists the actions possible on the observed
+hosts and plots the observed network.
+"""
 from typing import Any
 from nasimemu_enhanced.simulation.host_vector import HostVector
 import numpy as np
@@ -6,7 +12,23 @@ from numpy.typing import NDArray
 import networkx as nx
 import plotly.graph_objects as go
 
-def get_possible_actions(env: Any, s: NDArray[Any]) -> list[tuple[Any, int]]:
+def get_possible_actions(env: Any, s: NDArray[Any]) -> list[tuple[int, int, int]]:
+    """List every action on every host in the observation.
+
+    Parameters
+    ----------
+    env : NASimEmuEnv
+        the environment, used for its ``action_list``
+    s : numpy.ndarray
+        observation as a matrix
+
+    Returns
+    -------
+    list of tuple
+        ``(subnet, host, action_id)`` for every observed host and every
+        action, without the terminal action. Whether an action can succeed is
+        not considered.
+    """
     # gather all possible addresses
     addresses = []
     for host_data in s[:-1]:
@@ -16,14 +38,37 @@ def get_possible_actions(env: Any, s: NDArray[Any]) -> list[tuple[Any, int]]:
     possible_actions = []
 
     for host_add in addresses:
-        possible_actions.extend([(host_add, action_id) for action_id in range(len(env.action_list))]) 
+        possible_actions.extend([(int(host_add[0]), int(host_add[1]), action_id) for action_id in range(len(env.action_list))])
 
     return possible_actions
 
 def _complete_graph(n: Any) -> list[tuple[Any, Any]]:
+    """Return the edges, in both directions, between all pairs of the nodes."""
     return [(a, b) for a in n for b in n if a != b]
 
 def _gen_edge_index_v1(node_index: NDArray[Any], subnets: list[Any], subnet_graph: Any) -> NDArray[Any]:
+    """Generate the edges of graph version 1.
+
+    All nodes of a subnet, its hosts and the subnet node itself, are connected
+    to each other. Two subnet nodes are connected if one subnet was discovered
+    from the other.
+
+    Parameters
+    ----------
+    node_index : numpy.ndarray
+        ``(subnet, host)`` of every node, hosts first, then the subnet nodes
+        with host = -1
+    subnets : list of int
+        the discovered subnets, in the order of their nodes
+    subnet_graph : set of tuple
+        ``(from, to)`` pairs of subnets
+
+    Returns
+    -------
+    numpy.ndarray
+        edges as an array of shape (2, number of edges) holding node
+        positions; every connection is listed in both directions
+    """
     edge_index = []
 
     # hosts in subnets are connected together
@@ -49,6 +94,28 @@ def _gen_edge_index_v1(node_index: NDArray[Any], subnets: list[Any], subnet_grap
     return result
 
 def _gen_edge_index_v2(node_index: NDArray[Any], subnets: list[Any], subnet_graph: Any) -> NDArray[Any]:
+    """Generate the edges of graph version 2.
+
+    Every host is connected to the node of its subnet only, not to the other
+    hosts. Two subnet nodes are connected if one subnet was discovered from
+    the other.
+
+    Parameters
+    ----------
+    node_index : numpy.ndarray
+        ``(subnet, host)`` of every node, hosts first, then the subnet nodes
+        with host = -1
+    subnets : list of int
+        the discovered subnets, in the order of their nodes
+    subnet_graph : set of tuple
+        ``(from, to)`` pairs of subnets
+
+    Returns
+    -------
+    numpy.ndarray
+        edges as an array of shape (2, number of edges) holding node
+        positions; every connection is listed in both directions
+    """
     edge_index = []
 
     # hosts in subnets are connected to their subnet
@@ -76,8 +143,42 @@ def _gen_edge_index_v2(node_index: NDArray[Any], subnets: list[Any], subnet_grap
     result: NDArray[Any] = np.concatenate(edge_index).T
     return result
 
-# v1 = nodes are connected to each other; v2 = they're not
 def convert_to_graph(s: NDArray[Any], subnet_graph: Any, version: int = 1) -> tuple[NDArray[Any], NDArray[Any], NDArray[Any], NDArray[Any]]:
+    """Convert an observation matrix into a graph of hosts and subnets.
+
+    Every observed host and every subnet with an observed host becomes a
+    node. The row with the action result is dropped.
+
+    Parameters
+    ----------
+    s : numpy.ndarray
+        observation as a matrix
+    subnet_graph : set of tuple
+        ``(from, to)`` pairs of subnets, recording from which subnet another
+        one was discovered
+    version : int, optional
+        1 connects all nodes of a subnet to each other, 2 connects the hosts
+        only to the node of their subnet (default=1)
+
+    Returns
+    -------
+    numpy.ndarray
+        node features, one row per node, hosts first. A host node is its row
+        of the observation, a subnet node has a 1 in the column of its subnet;
+        both have the node type prepended (0 = host, 1 = subnet).
+    numpy.ndarray
+        edges, of shape (2, number of edges), holding node positions
+    numpy.ndarray
+        ``(subnet, host)`` of every node, with host = -1 for subnet nodes
+    numpy.ndarray
+        position of every host node for a positional encoding, 0 for subnet
+        nodes
+
+    Raises
+    ------
+    NotImplementedError
+        if the version is neither 1 nor 2
+    """
     # hosts_discovered = s[:-1, HostVector._discovered_idx] == 1
     # host_feats = s[:-1][hosts_discovered]
 
@@ -113,6 +214,15 @@ def convert_to_graph(s: NDArray[Any], subnet_graph: Any, version: int = 1) -> tu
 
 # inspired from https://plotly.com/python/network-graphs/
 def _plot(G: Any) -> Any:
+    """Draw a graph prepared by :func:`_make_graph`.
+
+    Connections between subnets are drawn solid, all others dashed.
+
+    Returns
+    -------
+    plotly.graph_objects.Figure
+        the figure
+    """
     def get_edges(type: str) -> tuple[list[Any], list[Any]]:
         edge_x = []
         edge_y = []
@@ -203,6 +313,26 @@ def _plot(G: Any) -> Any:
     return fig
 
 def _make_graph(s: Any, a: Any) -> Any:
+    """Build a networkx graph with everything needed to draw it.
+
+    Every node gets a position, a label, a colour and a symbol. Subnets are
+    grey triangles, hosts are circles, red if they are sensitive. A host label
+    shows its address, coloured by the access gained, and its running
+    services. The target of the last action is outlined and labelled with the
+    name of the action.
+
+    Parameters
+    ----------
+    s : tuple
+        the graph as returned by :func:`convert_to_graph`
+    a : Action or TerminalAction
+        the last action
+
+    Returns
+    -------
+    networkx.Graph
+        the graph with the display attributes set on its nodes
+    """
     node_feats, edge_index, node_index, pos_index = s
 
     G: nx.Graph[Any] = nx.Graph()
@@ -267,6 +397,23 @@ def _make_graph(s: Any, a: Any) -> Any:
     return G
 
 def plot_network(s: NDArray[Any], subnet_graph: Any, last_action: Any) -> Any:
+    """Plot the observed network and the last action.
+
+    Parameters
+    ----------
+    s : numpy.ndarray
+        observation as a matrix, e.g. ``info['s_raw']``
+    subnet_graph : set of tuple
+        ``(from, to)`` pairs of subnets, e.g. ``info['subnet_graph']``
+    last_action : Action or TerminalAction
+        the last action, e.g. ``info['a_raw']``; its target is highlighted
+
+    Returns
+    -------
+    plotly.graph_objects.Figure
+        the figure; show it with ``fig.show()`` or save it with
+        ``fig.write_image()``
+    """
     s_graph = convert_to_graph(s, subnet_graph, version=2)
     G = _make_graph(s_graph, last_action)
     fig = _plot(G)
