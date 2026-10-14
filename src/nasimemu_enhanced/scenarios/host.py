@@ -22,9 +22,10 @@ class Host:
                  reachable: bool = False,
                  discovered: bool = False,
                  access: int = 0) -> None:
-        """
-        Arguments
-        ---------
+        """Initialize Host.
+
+        Parameters
+        ----------
         address : (int, int)
             address of host as (subnet, id)
         os : dict

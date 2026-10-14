@@ -1,6 +1,7 @@
 __pycache__
 *.egg-info
 _*/
+uv.lock
 vagrant/Vagrantfile
 vagrant/firewall.rsc
 scenarios/*.pdf

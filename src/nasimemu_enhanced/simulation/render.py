@@ -1,31 +1,32 @@
-"""This module contains functions and classes for rendering NASim """
+"""Render NASim network state as readable tables."""
 from typing import TYPE_CHECKING, Any
 
 from prettytable import PrettyTable
 
 if TYPE_CHECKING:
-    from .network import Network
+    from .network import SimulationNetwork
     from .observation import Observation
     from .state import State
 
 
 class Viewer:
-    """A class for visualizing the network state from NASimEnv"""
+    """A class for visualizing the network state from SimulationEnvironment."""
 
-    def __init__(self, network: "Network") -> None:
-        """
-        Arguments
-        ---------
-        network : Network
+    def __init__(self, network: "SimulationNetwork") -> None:
+        """Initialize Viewer.
+
+        Parameters
+        ----------
+        network : SimulationNetwork
             network of environment
         """
         self.network = network
 
     def render_readable(self, obs: "Observation") -> None:
-        """Print a readable tabular version of observation to stdout
+        """Print a readable tabular version of observation to stdout.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         obs : Observation
             observation to view
         """
@@ -37,10 +38,10 @@ class Viewer:
         print(host_table)
 
     def render_readable_state(self, state: "State") -> None:
-        """Print a readable tabular version of observation to stdout
+        """Print a readable tabular version of observation to stdout.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         state : State
             state to view
         """

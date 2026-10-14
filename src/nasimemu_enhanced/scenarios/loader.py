@@ -1,14 +1,12 @@
-"""This module contains functionality for loading network scenarios from yaml
-files.
-"""
+"""Load network scenarios from V2 YAML files."""
 from collections.abc import Collection
 from typing import Any
 
 import math, random, numpy as np
 
-import nasimemu.nasim.scenarios.utils as u
-from nasimemu.nasim.scenarios.scenario import Address, Scenario
-from nasimemu.nasim.scenarios.host import Host
+import nasimemu_enhanced.scenarios.utils as u
+from nasimemu_enhanced.scenarios.scenario import Address, Scenario
+from nasimemu_enhanced.scenarios.host import Host
 
 
 VALID_ACCESS_VALUES = ["user", "root", u.USER_ACCESS, u.ROOT_ACCESS]
@@ -47,10 +45,10 @@ HOST_CONFIG_KEYS = {
 class ScenarioLoaderV2:
 
     def load(self, file_path: str, name: str | None = None) -> Scenario:
-        """Load the scenario from file
+        """Load the scenario from file.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         file_path : str
             path to scenario file
         name : str, optional
@@ -380,8 +378,9 @@ class ScenarioLoaderV2:
             self._validate_host_config(addr, cfg)
 
     def _has_all_host_addresses(self, addresses: Collection[Any]) -> bool:
-        """Check that list of (subnet_ID, host_ID) tuples contains all
-        addresses on network based on subnets list
+        """Check that the tuples contain all addresses on the network.
+
+        The (subnet_ID, host_ID) tuples are checked against the subnets list.
         """
         for s_id, s_size in enumerate(self.subnets[1:]):
             for m in range(s_size):
@@ -391,8 +390,9 @@ class ScenarioLoaderV2:
         return True
 
     def _validate_host_config(self, addr: Any, cfg: Any) -> None:
-        """Check if a host config is valid or not given the list of exploits available
-        N.B. each host config must contain at least one service
+        """Check that a host config is valid against the available exploits.
+
+        Each host config must contain at least one service.
         """
         err_prefix = f"Host {addr}"
         assert isinstance(cfg, dict) and len(cfg) >= len(HOST_CONFIG_KEYS), \
@@ -535,8 +535,9 @@ class ScenarioLoaderV2:
         return True
 
     def _parse_hosts(self) -> None:
-        """Returns ordered dictionary of hosts in network, with address as
-        keys and host objects as values
+        """Return an ordered dict of hosts, keyed by address.
+
+        Values are the constructed host objects.
         """
         hosts = dict()
         for address, h_cfg in self.host_configs.items():

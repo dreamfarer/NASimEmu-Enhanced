@@ -1,6 +1,6 @@
-""" The main Environment class for NASim: NASimEnv.
+"""The main Environment class for NASim: SimulationEnvironment.
 
-The NASimEnv class is the main interface for agents interacting with NASim.
+The SimulationEnvironment class is the main interface for agents interacting with NASim.
 """
 from typing import TYPE_CHECKING, Any
 
@@ -10,16 +10,16 @@ from gymnasium import spaces
 
 from .state import State
 from .render import Viewer
-from .network import Network
+from .network import SimulationNetwork
 from .observation import Observation
-from .action import Action, ParameterisedActionSpace
+from ..actions import Action, ParameterisedActionSpace
 
 if TYPE_CHECKING:
-    from nasimemu.nasim.scenarios.scenario import Scenario
+    from nasimemu_enhanced.scenarios.scenario import Scenario
 
 
-class NASimEnv(gym.Env[Any, Any]):
-    """ A simulated computer network environment for pen-testing.
+class SimulationEnvironment(gym.Env[Any, Any]):
+    """A simulated computer network environment for pen-testing.
 
     Implements the Gymnasium interface.
 
@@ -46,6 +46,7 @@ class NASimEnv(gym.Env[Any, Any]):
         the number of steps performed since last reset (this does not include
         generative steps)
     """
+
     metadata = {'rendering.modes': ["readable"]}
     reward_range = (-float('inf'), float('inf'))
 
@@ -57,7 +58,8 @@ class NASimEnv(gym.Env[Any, Any]):
     def __init__(self,
                  scenario: "Scenario",
                  fully_obs: bool = False) -> None:
-        """
+        """Initialize SimulationEnvironment.
+
         Parameters
         ----------
         scenario : Scenario
@@ -70,7 +72,7 @@ class NASimEnv(gym.Env[Any, Any]):
         self.scenario = scenario
         self.fully_obs = fully_obs
 
-        self.network = Network(scenario)
+        self.network = SimulationNetwork(scenario)
         self.current_state = State.generate_initial_state(self.network)
         self._renderer: Viewer | None = None
         # self.reset()
@@ -127,7 +129,7 @@ class NASimEnv(gym.Env[Any, Any]):
             whether the step limit of the scenario has been reached
         dict
             auxiliary information regarding step
-            (see :func:`nasim.env.action.ActionResult.info`)
+            (see :func:`nasimemu_enhanced.actions.ActionResult.info`)
         """
         next_state, obs, reward, terminated, info = self.generative_step(
             self.current_state,
@@ -173,7 +175,7 @@ class NASimEnv(gym.Env[Any, Any]):
             whether the episode has ended or not
         dict
             auxiliary information regarding step
-            (see :func:`nasim.env.action.ActionResult.info`)
+            (see :func:`nasimemu_enhanced.actions.ActionResult.info`)
         """
         if not isinstance(action, Action):
             action = self.action_space.get_action(action)
@@ -300,7 +302,7 @@ class NASimEnv(gym.Env[Any, Any]):
 
     def __str__(self) -> str:
         output = [
-            "NASimEnv:",
+            "SimulationEnvironment:",
             f"name={self.name}",
             f"fully_obs={self.fully_obs}"
         ]

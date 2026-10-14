@@ -1,4 +1,4 @@
-""" This module contains the HostVector class.
+"""The HostVector class.
 
 This is the main class for storing and updating the state of a single host
 in the NASim environment.
@@ -9,15 +9,15 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 from numpy.typing import NDArray
 
-from .utils import AccessLevel, Address
-from .action import Action, ActionResult, Exploit, PrivilegeEscalation
+from ..utils import AccessLevel, Address
+from ..actions import Action, ActionResult, Exploit, PrivilegeEscalation
 
 if TYPE_CHECKING:
-    from nasimemu.nasim.scenarios.host import Host
+    from nasimemu_enhanced.scenarios.host import Host
 
 
 class HostVector:
-    """ A Vector representation of a single host in NASim.
+    """A Vector representation of a single host in NASim.
 
     Each host is represented as a vector (1D numpy array) for efficiency and to
     make it easier to use with deep learning agents. The vector is made up of
@@ -205,10 +205,10 @@ class HostVector:
     def perform_action(
         self, action: Action
     ) -> tuple["HostVector", ActionResult]:
-        """Perform given action against this host
+        """Perform given action against this host.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         action : Action
             the action to perform
 
@@ -436,7 +436,7 @@ class HostVector:
 
     @classmethod
     def reset(cls) -> None:
-        """Resets any class variables.
+        """Reset any class variables.
 
         This is used to avoid errors when changing scenarios within a single
         python session

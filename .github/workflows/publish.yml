@@ -42,7 +42,7 @@ jobs:
             rm -rf .smoke-venv
             uv venv --python 3.10 .smoke-venv
             uv pip install --python .smoke-venv/bin/python "$dist"
-            .smoke-venv/bin/python -c "import nasimemu.env"
+            .smoke-venv/bin/python -c "import nasimemu_enhanced.env"
           done
 
       - name: Upload distributions as artifacts

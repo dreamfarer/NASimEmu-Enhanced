@@ -1,2 +1,0 @@
-- forked from https://github.com/Jjschwartz/NetworkAttackSimulator/tree/2e443e6cfca54ff56e73bbe40288d90ecdd76615 (licensed under MIT)
-- several changes made to the simulator

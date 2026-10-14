@@ -67,14 +67,15 @@ def load_yaml(file_path: str) -> Any:
     Raises
     ------
     Exception
-        if theres an issue loading file. """
+        if theres an issue loading file.
+    """
     with open(file_path) as fin:
         content = yaml.load(fin, Loader=yaml.FullLoader)
     return content
 
 
 def get_file_name(file_path: str) -> str:
-    """Extracts the file or dir name from file path
+    """Extract the file or dir name from file path.
 
     Parameters
     ----------
