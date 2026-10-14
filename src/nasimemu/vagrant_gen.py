@@ -109,7 +109,9 @@ end
             """
         elif 'linux' in os and os['linux']:
             add_loot_line = f"{varname}.vm.provision \"shell\", path: 'target/linux-insert-loot.sh'" if is_sensitive else ""
+            # the ub1404 box only offers ssh-rsa, which modern OpenSSH (used by rsync) disables by default
             return f"""
+        {varname}.ssh.extra_args = ["-o", "HostKeyAlgorithms=+ssh-rsa", "-o", "PubkeyAcceptedAlgorithms=+ssh-rsa"]
         {varname}.vm.synced_folder 'target', '/vagrant', type: 'rsync'
         {varname}.vm.provision "shell", path: 'target/linux-service-script.sh', args: '{" ".join(enabled_services)}'
         {varname}.vm.provision "shell", path: 'target/bootstrap.sh'
