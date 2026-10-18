@@ -47,7 +47,6 @@ env = gym.make('NASimEmu-v0', emulate=False, scenario_name='scenarios/entry_dmz_
 s, info = env.reset()
 
 # info['layout'] names the columns of a host row and info['actions'] lists the actions by action_id
-# info['action_mask'] (also returned by step) marks the actions that target an observed host, in the shape of the action space
 # env.action_space and env.observation_space are standard Gymnasium spaces
 
 # To see the emulation logs, uncomment the following:

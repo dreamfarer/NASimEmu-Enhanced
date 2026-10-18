@@ -244,8 +244,7 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         row_size = layout['row_size']
 
         # action = (subnet, host, action_id); the last action_id is the terminal action
-        self.action_shape = (max_subnets, max_hosts, len(action_catalogue))
-        self.action_space = spaces.MultiDiscrete(list(self.action_shape))
+        self.action_space = spaces.MultiDiscrete([max_subnets, max_hosts, len(action_catalogue)])
 
         if self.graph_version is None:
             # one row per observed host and a last row with the action result; the number of rows grows as hosts are discovered
@@ -444,33 +443,6 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         obs = self.env.current_state.get_observation(a, result, self.fully_obs)
         return obs.numpy(), -a.cost, result.info()
 
-    def _get_action_mask(self, s: NDArray[Any]) -> NDArray[np.bool_]:
-        """Mark the actions that target an observed host.
-
-        The mask repeats what the observation shows and says nothing about
-        whether an action will succeed. The environment does not enforce it.
-
-        Parameters
-        ----------
-        s : numpy.ndarray
-            observation as a matrix
-
-        Returns
-        -------
-        numpy.ndarray
-            boolean array in the shape of the action space, True for every
-            ``(subnet, host, action_id)`` whose host is in the observation
-        """
-        action_mask = np.zeros(self.action_shape, dtype=np.bool_)
-
-        for host_data in s[:-1]:
-            subnet, host = HostVector(host_data).address
-
-            if (subnet, host) != (0, 0):  # skip invalid entries
-                action_mask[subnet, host] = True
-
-        return action_mask
-
     def _to_observation(self, s: NDArray[Any]) -> Any:
         """Convert the matrix into the configured observation format.
 
@@ -561,8 +533,6 @@ class NASimEmuEnv(gym.Env[Any, Any]):
             auxiliary information. Besides the result of the action (see
             :meth:`nasimemu_enhanced.actions.ActionResult.info`) it holds
 
-            - ``action_mask``: boolean array in the shape of the action space,
-              True for the actions that target an observed host
             - ``s_raw``: the observation as a matrix, before the last action
               is appended and before the conversion into a graph
             - ``s_true``: the returned observation
@@ -635,7 +605,6 @@ class NASimEmuEnv(gym.Env[Any, Any]):
 
         i['s_raw'] = s
         i['a_raw'] = a
-        i['action_mask'] = self._get_action_mask(s)
 
         # optionally, include the last performed action
         if self.augment_with_action:
@@ -684,8 +653,6 @@ class NASimEmuEnv(gym.Env[Any, Any]):
               names behind the ``os``, ``services`` and ``processes`` columns
             - ``actions``: one dict per ``action_id`` with ``id``, ``type``
               and the parameters of the action
-            - ``action_mask``: boolean array in the shape of the action space,
-              True for the actions that target an observed host
         """
         super().reset(seed=seed)
 
@@ -706,7 +673,6 @@ class NASimEmuEnv(gym.Env[Any, Any]):
             s = self.env_po_wrapper.reset(s)
 
         self.s_raw = s
-        action_mask = self._get_action_mask(s)
 
         self.discovered_subnets = self._get_subnets(s)
         self.subnet_graph = set()
@@ -732,7 +698,7 @@ class NASimEmuEnv(gym.Env[Any, Any]):
             self.env.render_state()
             self.env.render(obs=s)
 
-        return s, {'layout': self._get_layout(), 'actions': self._get_action_catalogue(), 'action_mask': action_mask}
+        return s, {'layout': self._get_layout(), 'actions': self._get_action_catalogue()}
 
     def render(self, s: NDArray[Any]) -> None:  # type: ignore[override]  # renders the given observation
         """Print an observation as a table.
