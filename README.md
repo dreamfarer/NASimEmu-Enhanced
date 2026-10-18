@@ -47,7 +47,6 @@ env = gym.make('NASimEmu-v0', emulate=False, scenario_name='scenarios/entry_dmz_
 s, info = env.reset()
 
 # info['layout'] names the columns of a host row and info['actions'] lists the actions by action_id
-# info['action_mask'] (also returned by step) marks the actions that target an observed host, in the shape of the action space
 # env.action_space and env.observation_space are standard Gymnasium spaces
 
 # To see the emulation logs, uncomment the following:
@@ -76,7 +75,9 @@ for _ in range(3):
 ```
 
 ## Gymnasium integration
-The environment declares standard Gymnasium spaces and passes Gymnasium's environment checker. The action space is `MultiDiscrete([subnets, hosts, actions + 1])`. The size of the network is unknown to the attacker at the beginning, so the observation is of variable length: a `Sequence` of host rows in the matrix format and a `Graph` in the graph formats. Many of the default agents made for Gymnasium expect fixed-size observations and therefore still do not work out of the box.
+The environment declares standard Gymnasium spaces:
+- The action space is `MultiDiscrete([subnets, hosts, actions + 1])`.
+- The observation space is a variable-length `Sequence` of host rows in the matrix format and a `Graph` in the graph formats, as the size of the network is unknown to the attacker at the beginning.
 
 ## Implemented Deep RL Agents
 See the separate repository [NASimEmu-agents](https://github.com/jaromiru/NASimEmu-agents) for implemented agents.
