@@ -40,6 +40,18 @@ backwards compatible; see [Migrating from 1.x](#migrating-from-1x).
   `env.subnet_graph`.
 - Scenario `xs_entry_dmz_one_subnet.v2.yaml`, small enough to emulate on a
   laptop.
+- Optional network API (`nasimemu_enhanced.network`, extra `[network]`) that
+  exposes the environment over [dm_env_rpc](https://github.com/google-deepmind/dm_env_rpc)
+  (gRPC), so agents in another process, language or machine can drive it:
+  - `serve()` and the `nasimemu-server` console script run a server wrapping
+    `NASimEmuEnv`; a client creates a world (choosing the scenario and
+    observation format), joins it for the specs, then steps and resets it.
+  - `RemoteNASimEmuEnv` is a Gymnasium client with the same constructor,
+    `reset()`/`step()` returns and `s_raw`/`a_raw`/`subnet_graph`/`action_list`
+    attributes as the local environment, so agent code is unchanged.
+  - The transport is unencrypted and binds to localhost by default; emulation
+    is refused unless the server is started with `allow_emulation=True`, since a
+    remote caller could otherwise drive real exploits.
 
 ### Changed
 
