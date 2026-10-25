@@ -97,24 +97,33 @@ class ActionResult:
             self.newly_discovered = {}
 
     def info(self) -> dict[str, Any]:
-        """Get results as dict.
+        """Get results as dict of plain Python values.
+
+        The dict only holds ``bool``, ``int``, ``float``, ``str``, lists and
+        dicts with string keys, so it can be serialized, e.g. as JSON.
 
         Returns
         -------
         dict
-            action results information
+            ``success``, ``connection_error``, ``permission_error`` and
+            ``undefined_error`` as bool; ``value`` as float; ``access`` as
+            int (0 = none, 1 = user, 2 = root); ``services``, ``os`` and
+            ``processes`` as ``{name: float}``; ``discovered`` and
+            ``newly_discovered`` as sorted lists of ``[subnet, host]``
+            addresses
         """
         return dict(
-            success=self.success,
-            value=self.value,
-            services=self.services,
-            os=self.os,
-            processes=self.processes,
-            access=self.access,
-            discovered=self.discovered,
-            connection_error=self.connection_error,
-            permission_error=self.permission_error,
-            newly_discovered=self.newly_discovered
+            success=bool(self.success),
+            value=float(self.value),
+            services={k: float(v) for k, v in self.services.items()},
+            os={k: float(v) for k, v in self.os.items()},
+            processes={k: float(v) for k, v in self.processes.items()},
+            access=0 if isinstance(self.access, dict) else int(self.access),  # {} if not set
+            discovered=sorted([int(s), int(h)] for (s, h), d in self.discovered.items() if d),
+            connection_error=bool(self.connection_error),
+            permission_error=bool(self.permission_error),
+            undefined_error=bool(self.undefined_error),
+            newly_discovered=sorted([int(s), int(h)] for (s, h), d in self.newly_discovered.items() if d)
         )
 
     def __str__(self) -> str:

@@ -402,11 +402,11 @@ def plot_network(s: NDArray[Any], subnet_graph: Any, last_action: Any) -> Any:
     Parameters
     ----------
     s : numpy.ndarray
-        observation as a matrix, e.g. ``info['s_raw']``
+        observation as a matrix, e.g. ``env.s_raw``
     subnet_graph : set of tuple
-        ``(from, to)`` pairs of subnets, e.g. ``info['subnet_graph']``
+        ``(from, to)`` pairs of subnets, e.g. ``env.subnet_graph``
     last_action : Action or TerminalAction
-        the last action, e.g. ``info['a_raw']``; its target is highlighted
+        the last action, e.g. ``env.a_raw``; its target is highlighted
 
     Returns
     -------
