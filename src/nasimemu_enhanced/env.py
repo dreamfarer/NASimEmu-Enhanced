@@ -149,6 +149,8 @@ class NASimEmuEnv(gym.Env[Any, Any]):
     s_raw : numpy.ndarray
         the last observation as a matrix, before the last action is appended
         and before the conversion into a graph
+    a_raw : Action or TerminalAction or None
+        the last performed action object, None after a reset
     subnet_graph : set
         ``(from, to)`` pairs of subnets, recording from which subnet another
         one was discovered
@@ -411,6 +413,17 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         # print(a_class, a_params, subnet, host, action_id)
         return a_class(target=(subnet, host), **a_params)
 
+    def _action_id(self, a: Action | TerminalAction) -> int:
+        """Return the ``action_id`` of an action object."""
+        if isinstance(a, TerminalAction):
+            return len(self.action_list)
+
+        for action_id, (a_class, a_params) in enumerate(self.action_list):
+            if type(a) is a_class and a_params.get('name', a.name) == a.name:
+                return action_id
+
+        raise ValueError(f"Action not in the action list of the scenario: {a}")
+
     def _is_valid_target(self, a: Action) -> bool:
         """Check whether the action targets an address with a host.
 
@@ -530,19 +543,8 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         bool
             truncated, True if ``step_limit`` was reached
         dict
-            auxiliary information. Besides the result of the action (see
-            :meth:`nasimemu_enhanced.actions.ActionResult.info`) it holds
-
-            - ``s_raw``: the observation as a matrix, before the last action
-              is appended and before the conversion into a graph
-            - ``s_true``: the returned observation
-            - ``a_raw``: the performed action object
-            - ``subnet_graph``: ``(from, to)`` pairs of discovered subnets
-            - ``step_idx``: number of steps in this episode
-            - ``r_tot``: sum of the rewards in this episode
-            - ``captured``: number of steps with a positive reward in this
-              episode
-            - ``done`` and ``d_true``: terminated or truncated
+            auxiliary information as plain Python values (see
+            :meth:`_step_info`)
 
         Notes
         -----
@@ -552,6 +554,8 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         s: Any
         if isinstance(action, (Action, TerminalAction)):
             a = action
+            subnet, host = a.target if isinstance(a, Action) else (0, 0)
+            action = [subnet, host, self._action_id(a)]
         else:
             a = self._translate_action(action)
 
@@ -602,9 +606,7 @@ class NASimEmuEnv(gym.Env[Any, Any]):
             # self.env.render() # show observation
 
         self.s_raw = s  # before any augmentation / transformation (e.g., into graph)
-
-        i['s_raw'] = s
-        i['a_raw'] = a
+        self.a_raw: Action | TerminalAction | None = a
 
         # optionally, include the last performed action
         if self.augment_with_action:
@@ -613,19 +615,47 @@ class NASimEmuEnv(gym.Env[Any, Any]):
         # optionally, convert the observation into a graph
         s = self._to_observation(s)
 
-        i['s_true'] = s
-        i['step_idx'] = self.step_idx
-        i['subnet_graph'] = self.subnet_graph
-        i['r_tot'] = self.r_tot
-        i['captured'] = self.captured
-
         truncated = (not terminated) and (self.step_limit is not None) and (self.step_idx >= self.step_limit)
 
-        i['done'] = terminated or truncated
-        i[
-            'd_true'] = terminated or truncated  # fix: this will disable the difference between true termination and step_limit exceedance - both are treated the same
+        return s, r, terminated, truncated, self._step_info(action, i)
 
-        return s, r, terminated, truncated, i
+    def _step_info(self, action: Any, result: dict[str, Any]) -> dict[str, Any]:
+        """Build the info of :meth:`step` as plain Python values.
+
+        Simulation and emulation return the same keys; what the emulation
+        does not report keeps the value of a failed action.
+
+        Parameters
+        ----------
+        action : sequence of int
+            the performed action as ``(subnet, host, action_id)``
+        result : dict
+            the result of the action as reported by the wrapped environment
+
+        Returns
+        -------
+        dict
+            - ``action``: ``[subnet, host, action_id]``
+            - the result of the action, see
+              :meth:`nasimemu_enhanced.actions.ActionResult.info`
+            - ``subnet_graph``: sorted ``[from, to]`` pairs of discovered
+              subnets
+            - ``step_idx``: number of steps in this episode
+            - ``r_tot``: sum of the rewards in this episode
+            - ``captured``: number of steps with a positive reward in this
+              episode
+        """
+        info = ActionResult(False).info()
+        info.update(result)
+        info['success'] = bool(info['success'])  # the emulation reports only success
+
+        info['action'] = [int(x) for x in action]
+        info['subnet_graph'] = sorted([int(a), int(b)] for a, b in self.subnet_graph)
+        info['step_idx'] = int(self.step_idx)
+        info['r_tot'] = float(self.r_tot)
+        info['captured'] = int(self.captured)
+
+        return info
 
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[Any, dict[str, Any]]:
         """Generate a new scenario instance and start an episode.
@@ -673,6 +703,7 @@ class NASimEmuEnv(gym.Env[Any, Any]):
             s = self.env_po_wrapper.reset(s)
 
         self.s_raw = s
+        self.a_raw = None
 
         self.discovered_subnets = self._get_subnets(s)
         self.subnet_graph = set()

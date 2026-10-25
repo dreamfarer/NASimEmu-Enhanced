@@ -78,6 +78,7 @@ for _ in range(3):
 The environment declares standard Gymnasium spaces:
 - The action space is `MultiDiscrete([subnets, hosts, actions + 1])`.
 - The observation space is a variable-length `Sequence` of host rows in the matrix format and a `Graph` in the graph formats, as the size of the network is unknown to the attacker at the beginning.
+- The `info` of `reset()` and `step()` holds plain data only (it can be serialized, e.g. as JSON). The `step()` info has the same keys in simulation and emulation: the performed `action`, its result (`success`, errors, `value`, `access`, revealed `services`/`os`/`processes`, `discovered` hosts) and the episode counters (`step_idx`, `r_tot`, `captured`, `subnet_graph`).
 
 ## Implemented Deep RL Agents
 See the separate repository [NASimEmu-agents](https://github.com/jaromiru/NASimEmu-agents) for implemented agents.
