@@ -44,14 +44,28 @@ backwards compatible; see [Migrating from 1.x](#migrating-from-1x).
   exposes the environment over [dm_env_rpc](https://github.com/google-deepmind/dm_env_rpc)
   (gRPC), so agents in another process, language or machine can drive it:
   - `serve()` and the `nasimemu-server` console script run a server wrapping
-    `NASimEmuEnv`; a client creates a world (choosing the scenario and
-    observation format), joins it for the specs, then steps and resets it.
+    `NASimEmuEnv`; a client creates one or more worlds (choosing the scenario
+    and observation format), joins one for the specs, then steps and resets it.
   - `RemoteNASimEmuEnv` is a Gymnasium client with the same constructor,
-    `reset()`/`step()` returns and `s_raw`/`a_raw`/`subnet_graph`/`action_list`
-    attributes as the local environment, so agent code is unchanged.
-  - The transport is unencrypted and binds to localhost by default; emulation
-    is refused unless the server is started with `allow_emulation=True`, since a
-    remote caller could otherwise drive real exploits.
+    `reset()`/`step()` returns, declared spaces and
+    `s_raw`/`a_raw`/`subnet_graph`/`action_list` attributes as the local
+    environment, so agent code is unchanged.
+  - The server follows the dm_env_rpc conventions, so a stock client such as
+    `DmEnvAdaptor` can drive it: requests are answered with the right
+    `google.rpc` status codes, a step returns only the observations it was asked
+    for, actions are validated against their spec, and a new episode begins
+    automatically after one ends.
+  - Each step is a set of typed observation tensors: the formatted observation,
+    the raw matrix `s_raw`, the `reward` and one `info.*` tensor per field of the
+    `step()` info. The `reset()` metadata (the host-row `layout` and the action
+    catalogue) is served through the dm_env_rpc properties extension.
+  - Each world runs in its own process, so worlds do not share a random stream
+    and a seeded run is reproducible regardless of other clients.
+  - The transport uses gRPC local credentials by default, so the server accepts
+    only loopback connections; pass `credentials` to `serve()` for TLS.
+    Emulation is refused unless the server is started with
+    `allow_emulation=True`, since a remote caller could otherwise drive real
+    exploits.
 
 ### Changed
 
